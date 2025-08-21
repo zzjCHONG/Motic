@@ -1,5 +1,6 @@
 ﻿using System.IO.Ports;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace Motic
 {
@@ -281,6 +282,8 @@ namespace Motic
                 if (!Enum.IsDefined(typeof(Axis), axis)) return false;
                 string command = $"*DP{(Axis)axis}{pos:X8}$";//*DPY000F07CD$
 
+                //*^Y000F07CD$  返回是这个？
+
                 var (ok, resp) = await SendCommandAsync(command);
                 if (ok)
                 {
@@ -302,6 +305,9 @@ namespace Motic
 
         /// <summary>
         /// 设置加速度
+        /// 默认XY为200，Z为500
+        /// XY轴加速步进脉冲速度计算：Value * 2000 （PPS/SEC）
+        /// Z轴的加速步进脉冲速度计算：Value * 10000 （PPS/SEC）
         /// </summary>
         /// <param name="axis"></param>
         /// <param name="accSpeed"></param>
@@ -319,6 +325,9 @@ namespace Motic
 
         /// <summary>
         /// 设置减速度
+        /// 默认XY为200，Z为500
+        /// XY轴加速步进脉冲速度计算：Value * 2000 （PPS/SEC）
+        /// Z轴的加速步进脉冲速度计算：Value * 10000 （PPS/SEC）
         /// </summary>
         /// <param name="axis"></param>
         /// <param name="accSpeed"></param>
@@ -336,6 +345,8 @@ namespace Motic
 
         /// <summary>
         /// 设置速度
+        /// XY 轴：Value * 0.01 (mm/s) // Value 为设置速度值，最大取值为 2000
+        /// Z 轴：Value* 0.0008 (mm/s) // Value 为设置速度值，最大取值为 8000
         /// 速度无负值
         /// </summary>
         /// <param name="axis"></param>
@@ -344,7 +355,9 @@ namespace Motic
         public bool SetSpeed(uint axis, int accSpeed)
         {
             if (!Enum.IsDefined(typeof(Axis), axis)) return false;
-            if (accSpeed > 8000 || accSpeed < 0) return false;
+
+            var max = axis == (uint)Axis.Z ? 8000 : 2000;
+            if (accSpeed > max || accSpeed < 0) return false;
 
             string command = $"*SP{(Axis)axis}{accSpeed:X4}$";//*SPZ03E8$
             _serialPort!.Write(command);//该设置无返回值
@@ -360,8 +373,8 @@ namespace Motic
         /// <returns></returns>
         public bool Stop(uint axis)
         {
-            //使电机停止运动，运动停止后会向 PC 发出运动完成的信息（见：“4）运动完成”），但若电机
-            //处于静止状态，此指令不执行任何操作，也不会向 PC 发出运动完成信息
+            //使电机停止运动，运动停止后会向 PC 发出运动完成的信息（见：“4）运动完成”）
+            //但若电机处于静止状态，此指令不执行任何操作，也不会向 PC 发出运动完成信息
 
             if (!GetAxisState(axis, out var isBusy)) return false;
             if (!isBusy) return true;
@@ -369,22 +382,17 @@ namespace Motic
             if (!Enum.IsDefined(typeof(Axis), axis)) return false;
             string command = $"*ST{(Axis)axis}$";//*STX$
 
-            if (!SendCommand(command, out var resp)) return false;
-
-            if (!CheckReturnMsg(command, resp)) return false;
+            _serialPort!.Write(command);//静止状态，无返回；运动过程中，下位机返回“运动完成”
 
             return true;
         }
 
         /// <summary>
         /// 相对位移
-        /// 未判断到位
-        /// 若发生错误，会向 PC 发出错误信息。（见：“8）错误信息”）
-        /// 若触发限位，则停止运动并发出运动完成信息。
-        /// 若运动正常，则运动完成后会发出运动完成信息
+        /// 未判断到位？--待定
         /// </summary>
         /// <param name="axis"></param>
-        /// <param name="isForward"></param>
+        /// <param name="isForward">true为正向</param>
         /// <param name="pos"></param>
         /// <returns></returns>
         public async Task<bool> RelativeMove(uint axis,bool isForward, int pos)
@@ -394,6 +402,7 @@ namespace Motic
 
             string command = $"*PR{(Axis)axis}{dir}{pos:X8}$";//*PRY+00000FA0$
 
+            //错误：“错误信息”；限位：停止运动并发出“运动完成”；正常运动：运动完成后发出“运动完成”
             var (ok, resp) = await SendCommandAsync(command);
             if (ok)
             {
@@ -408,30 +417,24 @@ namespace Motic
 
         /// <summary>
         /// 连续运动(JOG)
-        /// 配合“停止”控制
-        /// 控制电机向一个方向连续运动。发出停止命令会使电机停止运行，若在运动中触发限位，电机会立即停止，并发出运动完成消息
+        /// 控制电机向一个方向连续运动
+        /// 需配合“停止”控制
+        /// //错误：“错误信息”；限位：停止运动并发出“运动完成”；
         /// </summary>
-        /// <param name="axis"></param>
-        /// <param name="isForward"></param>
-        /// <param name="pos"></param>
+        /// <param name="axis">× 可为 X or Y or Z</param>
+        /// <param name="isForward">true为正向，坐标增加</param>
+        /// <param name="speed">运动的速度</param>
         /// <returns></returns>
-        public async Task<bool> JogMove(uint axis, bool isForward, int pos)
+        public bool JogMove(uint axis, bool isForward, int speed)
         {
             if (!Enum.IsDefined(typeof(Axis), axis)) return false;
             var dir = isForward ? "+" : "-";
 
-            string command = $"*JG{(Axis)axis}{dir}{pos:X4}$";//*JGX+07D0$
+            string command = $"*JG{(Axis)axis}{dir}{speed:X4}$";//*JGX+07D0$，X 轴以 2000 （20mm/s）速度正向运动。2000 转换为十六进制为 07D0
 
-            var (ok, resp) = await SendCommandAsync(command);
-            if (ok)
-            {
-                if (!CheckReturnMsg(command, resp)) return false;
+            _serialPort?.Write(command);
 
-                Console.WriteLine("[XXX] RelativeMoveAsync Success");
-                return true;
-            }
-
-            return false;
+            return true;
         }
 
         /// <summary>
@@ -477,7 +480,7 @@ namespace Motic
         /// </summary>
         /// <param name="axis"></param>
         /// <returns></returns>
-        public async Task<bool> Reset(uint axis)
+        public bool Reset(uint axis)
         {
             string command;
             switch (axis)
@@ -495,16 +498,9 @@ namespace Motic
                     return false;
             }
 
-            var (ok, resp) = await SendCommandAsync(command);
-            if (ok)
-            {
-                if (!CheckReturnMsg(command, resp)) return false;
+            _serialPort!.Write(command);//等待“复位完成”返回
 
-                Console.WriteLine("[XXX] RelativeMoveAsync Success");
-                return true;
-            }
-
-            return false;
+            return true;
         }
 
         public enum Axis
@@ -595,25 +591,11 @@ namespace Motic
             }
         }
 
-        /// <summary>
-        /// 枚举类型，定义了主光路可能的位置
-        /// </summary>
         public enum OpticalPathPosition
         {
-            /// <summary>
-            /// 目视位置
-            /// </summary>
-            Visual = 1,
-
-            /// <summary>
-            /// 目视+相机位置
-            /// </summary>
-            VisualAndCamera = 2,
-
-            /// <summary>
-            /// 相机位置
-            /// </summary>
-            Camera = 3
+            Visual = 1,//目视位置
+            VisualAndCamera = 2,//目视+相机位置
+            Camera = 3//相机位置
         }
     }
 
@@ -731,10 +713,6 @@ namespace Motic
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <returns></returns>
         public async Task<(bool,uint)> FilterWheelTurnNextPositionAsync()
         {
             try
@@ -778,9 +756,6 @@ namespace Motic
 
         private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
-            //*@α$,α取值为 H、I、J，对应XYZ——复位完成
-            //*(×HHHHHHHH$，× 值可为 X or Y or Z——运动完成
-            //*!×W$，× 可为 X or Y or Z——错误信息
             try
             {
                 string data = _serialPort!.ReadExisting();
@@ -790,45 +765,39 @@ namespace Motic
                 {
                     // 找帧头
                     int startIndex = _receiveBuffer.IndexOf("*", StringComparison.Ordinal);
-                    if (startIndex < 0)
-                        break;
+                    if (startIndex < 0) break;
 
                     // 找帧尾
                     int endIndex = _receiveBuffer.IndexOf("$", startIndex, StringComparison.Ordinal);
-                    if (endIndex < 0)
-                        break;
+                    if (endIndex < 0) break;
 
                     // 提取完整帧
                     string frame = _receiveBuffer.Substring(startIndex, endIndex - startIndex + 1);
+
+                    // 清理已处理的数据
                     _receiveBuffer = _receiveBuffer.Substring(endIndex + 1);
 
                     // 校验首尾
-                    if (!frame.StartsWith("*") || !frame.EndsWith("$"))
-                        continue;
-                    // 分类处理
-                    if (frame.StartsWith("*@")) // 复位完成
+                    if (!frame.StartsWith("*") || !frame.EndsWith("$")) continue;
+
+                    if (frame.StartsWith("*@")) //复位完成——*@H$ *@I$ *@J$ ；H= X, I=Y, J=Z
                     {
-                        // *@H$  / *@I$ / *@J$
-                        char axis = frame[2]; // H= X, I=Y, J=Z
+                        char axis = frame[2];
                         ResetCompleted?.Invoke(axis);
                     }
-                    else if (frame.StartsWith("*(")) // 运动完成
+                    else if (frame.StartsWith("*("))//运动完成——*(X12345678$，× 可为 X or Y or Z
                     {
-                        // *(X12345678$
                         char axis = frame[2];
-                        string posStr = frame.Substring(3, frame.Length - 4); // 去掉*(X 和 $ 
-                        if (int.TryParse(posStr, out int position))
-                            MoveCompleted?.Invoke(axis, position);
+                        int position = int.Parse(frame.AsSpan(3, frame.Length - 4));
+                        MoveCompleted?.Invoke(axis, position);
                     }
-                    else if (frame.StartsWith("*!")) // 错误信息
+                    else if (frame.StartsWith("*!"))//错误信息——*!XW$，× 可为 X or Y or Z
                     {
-                        // *!XW$
                         char axis = frame[2];
                         ErrorOccurred?.Invoke(axis);
                     }
-                    else
+                    else// 普通应答，供 SendCommand/SendCommandAsync 使用
                     {
-                        // 普通应答，供 SendCommand 使用
                         _lastResponse = frame;
                         _commandTcs?.TrySetResult(frame);
                         _waitHandle.Set();
