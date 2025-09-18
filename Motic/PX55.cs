@@ -1,4 +1,5 @@
-﻿using System.IO.Ports;
+﻿using System.Diagnostics;
+using System.IO.Ports;
 using System.Text.RegularExpressions;
 using System.Threading;
 
@@ -21,7 +22,7 @@ namespace Motic
         private string? _portName;
         private readonly ManualResetEventSlim _dataReceivedEvent = new(false);
         private string _receivedDataforValid = string.Empty;
-        private readonly int _validTimeout = 1500;
+        private readonly int _validTimeout = 1000;
 
         public PX55()
         {
@@ -118,11 +119,11 @@ namespace Motic
                     _receivedDataforValid = string.Empty;
 
                     _serialPort.Open();
-                    _serialPort.Write("N\r"); // 发送验证命令
+                    _serialPort.Write("*?$"); // 发送验证命令
 
                     if (_dataReceivedEvent.Wait(_validTimeout))
                     {
-                        if (!string.IsNullOrEmpty(_receivedDataforValid) && _receivedDataforValid.Contains("MS2000"))
+                        if (!string.IsNullOrEmpty(_receivedDataforValid) && _receivedDataforValid.Contains('$'))//发送*?$  接收*=$
                         {
                             _portName = com;
                             _serialPort.Close();
@@ -222,7 +223,7 @@ namespace Motic
         /// <returns></returns>
         public bool GetConnectState()
         {
-            string command = $"*?$";//*?$
+            string command = "*?$";//*?$   *?V$
             if (!SendCommand(command, out var resp)) return false;
 
             if (!CheckReturnMsg(command, resp)) return false;
@@ -273,8 +274,7 @@ namespace Motic
         }
 
         /// <summary>
-        /// 移动
-        /// 未判断到位
+        /// 设定当前位置为指定位置（非移动）
         /// </summary>
         /// <param name="axis"></param>
         /// <param name="pos"></param>
@@ -380,7 +380,9 @@ namespace Motic
             //使电机停止运动，运动停止后会向 PC 发出运动完成的信息（见：“4）运动完成”）
             //但若电机处于静止状态，此指令不执行任何操作，也不会向 PC 发出运动完成信息
 
-            if (!GetAxisState(axis, out var isBusy)) return false;
+            if (!GetAxisState(axis, out var isBusy)) 
+                return false;
+
             if (!isBusy) return true;
 
             if (!Enum.IsDefined(typeof(Axis), axis)) return false;
@@ -412,7 +414,11 @@ namespace Motic
             {
                 if (!CheckReturnMsg(command, resp)) return false;
 
-                Console.WriteLine("[XXX] RelativeMoveAsync Success");
+                char axisResp = resp[2];
+                string hexPos = resp.Substring(3, resp.Length - 4);
+                int position = int.Parse(hexPos, System.Globalization.NumberStyles.HexNumber);
+
+                Console.WriteLine($"[XXX] RelativeMoveAsync Success：{axisResp}-{position}");
                 return true;
             }
 
@@ -459,10 +465,10 @@ namespace Motic
 
                 if (!CheckReturnMsg(command, resp)) return false;
 
-                var match = Regex.Match(resp, @"\d+$");
+                var match = Regex.Match(resp, @"([01])\$");
                 if (!match.Success) return false;
 
-                isBusy = Convert.ToBoolean(int.Parse(match.Value));//0：静止；1运动中
+                isBusy = Convert.ToBoolean(int.Parse(match.Groups[1].Value));//0：静止；1运动中
 
                 return true;
             }
@@ -507,6 +513,12 @@ namespace Motic
             return true;
         }
 
+        /// <summary>
+        /// 复位需要使用异步
+        /// </summary>
+        /// <param name="axis"></param>
+        /// <param name="timeoutMs"></param>
+        /// <returns></returns>
         public async Task<bool> ResetAsync(uint axis, int timeoutMs = 5000)
         {
             string command;
@@ -549,13 +561,16 @@ namespace Motic
             // 等待事件或超时
             var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(timeoutMs));
             if (completedTask == tcs.Task)
+            {
+                ResetCompleted -= Handler; // 超时也要解除订阅       
                 return true;
+            }
 
             ResetCompleted -= Handler; // 超时也要解除订阅
             return false;
         }
 
-        public enum Axis
+        public enum Axis : uint
         {
             X = 1,
             Y = 2,
@@ -568,8 +583,6 @@ namespace Motic
     /// </summary>
     public partial class PX55
     {
-        //无到位判断？
-
         /// <summary>
         /// 获取主光路位置
         /// H 表示当前主光路的位置。H 取值可为 1/2/3。其中，1：目视位置；2：目视+相机位置；3：相机位置
@@ -587,10 +600,10 @@ namespace Motic
 
                 if (!CheckReturnMsg(command, resp)) return false;
 
-                var match = Regex.Match(resp, @"\d+$");
+                var match = Regex.Match(resp, @"(\d)\$");
                 if (!match.Success) return false;
 
-                switch (int.Parse(match.Value))
+                switch (int.Parse(match.Groups[1].Value))
                 {
                     case 1:
                         pos = OpticalPathPosition.Visual;
@@ -617,6 +630,8 @@ namespace Motic
 
         /// <summary>
         /// 切换主光路位置
+        /// 若发送位置同主光路相同，则无返回
+        /// 正常设置，有若干乱码，最后才返回*-F0H$，需改为异步
         /// </summary>
         /// <param name="pos"></param>
         /// <returns></returns>
@@ -624,6 +639,10 @@ namespace Motic
         {
             try
             {
+                //// 若发送位置同主光路相同，则无返回
+                //if (!GetOpticalPos(out OpticalPathPosition posRes)) return false;
+                //if (posRes == pos) return true;
+
                 var posInput = (int)pos;
                 var code = posInput.ToString("D2");
                 string command = $"*-FFF{code}$";//*-FFF01$
@@ -659,11 +678,10 @@ namespace Motic
     /// </summary>
     public partial class PX55
     {
-        const int TOTAL_OBJECTIVES = 6;
+        //*RL6$  *RL1$ *RL2$ 
 
         public async Task<bool> ObjectiveTurnNextPositionAsync()
         {
-            //有到位判断
             try
             {
                 string command = $"*Key1$";
@@ -673,7 +691,8 @@ namespace Motic
                 {
                     if (!CheckReturnMsg(command, resp)) return false;//*[eH$*RLH$；*[e2$ *RL2$；H为当前物镜孔位，1-6，转换器运动完成
 
-                    if (resp.Contains("[e") && resp.Contains("RL"))
+                    //  if (resp.Contains("[e") && resp.Contains("RL"))
+                    if (resp.Contains("RK"))
                     {
                         Console.WriteLine("[XXX] ObjectiveTurnNextPositionAsync Success");
                         return true;
@@ -699,7 +718,8 @@ namespace Motic
                 {
                     if (!CheckReturnMsg(command, resp)) return false;
 
-                    if (resp.Contains("[e") && resp.Contains("RL"))
+                    // if (resp.Contains("[e") && resp.Contains("RL"))
+                    if (resp.Contains("RK"))
                     {
                         Console.WriteLine("[XXX] ObjectiveTurnLastPositionAsync Success");
                         return true;
@@ -726,10 +746,10 @@ namespace Motic
 
                 if (!CheckReturnMsg(command, resp)) return false;
 
-                var match = Regex.Match(resp, @"\d+$");
+                var match = Regex.Match(resp, @"\*RL(\d)\$");
                 if (!match.Success) return false;
 
-                pos = uint.Parse(match.Value);
+                pos = uint.Parse(match.Groups[1].Value);
 
                 Console.WriteLine("[XXX] GetObjectivePosition Success!");
                 return true;
@@ -750,6 +770,12 @@ namespace Motic
     {
         //todo,封装到达指定滤光片位置函数
 
+        //返回两个指令【未复位状态下】
+        //*RK71$    *@ff1$
+        //*RK51$    *@ff1$
+
+        //限位下（8到1的过程，返回得莫名其妙）：*_DBG: angle = 6.135923, closeFilter = 1 $
+
         public bool GetFilterWheelPosition(out uint pos)
         {
             pos = 0;
@@ -761,10 +787,10 @@ namespace Motic
 
                 if (!CheckReturnMsg(command, resp)) return false;
 
-                var match = Regex.Match(resp, @"\d+$");
+                var match = Regex.Match(resp, @"\*\[rC(\d)\$");
                 if (!match.Success) return false;
 
-                pos = uint.Parse(match.Value);
+                pos = uint.Parse(match.Groups[1].Value);
 
                 Console.WriteLine("[XXX] GetFilterWheelPosition Success!");
                 return true;
@@ -776,9 +802,8 @@ namespace Motic
             }
         }
 
-        public async Task<(bool,uint)> FilterWheelTurnNextPositionAsync()
+        public async Task<(bool, uint)> FilterWheelTurnNextPositionAsync()
         {
-            //有到位判断？
             try
             {
                 string command = $"*Key3$";
@@ -786,15 +811,19 @@ namespace Motic
                 var (ok, resp) = await SendCommandAsync(command);
                 if (ok)
                 {
-                    if (!CheckReturnMsg(command, resp)) return (false, 0);//*[rC2$，即说明当前滤色块转盘位于 2 号孔
+                    if (!CheckReturnMsg(command, resp)) return (false, 0);
 
-                    var match = Regex.Match(resp, @"\d+$");
+                    //回复的信息有问题！！
+                    // *_DBG: angle = 6.134389, closeFilter = 1 $
+
+                    //实际返回： *RK51$ *@ff2$
+                    var match = Regex.Match(resp, @"(\d+)\$(?!.*\$)");
                     if (!match.Success) return (false, 0);
 
-                    uint pos = uint.Parse(match.Value);
+                    uint pos = uint.Parse(match.Groups[1].Value);
 
                     Console.WriteLine("[XXX] FilterWheelTurnNextPositionAsync Success");
-                    return (true,pos);
+                    return (true, pos);
                 }
                 return (false, 0);
             }
@@ -805,7 +834,7 @@ namespace Motic
             }
         }
 
-        public async Task<(bool, uint)> FilterWheelTurnLastPositionAsync()
+        public async Task<(bool,uint)> FilterWheelTurnLastPositionAsync()
         {
             try
             {
@@ -816,10 +845,11 @@ namespace Motic
                 {
                     if (!CheckReturnMsg(command, resp)) return (false, 0);// * [rC2$，即说明当前滤色块转盘位于 2 号孔
 
-                    var match = Regex.Match(resp, @"\d+$");
-                    if (!match.Success) return (false, 0);
+                    //实际返回： *RK71$ *@ff2$
+                    var match = Regex.Match(resp, @"(\d+)\$(?!.*\$)");
+                    if (!match.Success) return (false,0);
 
-                    uint pos = uint.Parse(match.Value);
+                    uint pos = uint.Parse(match.Groups[1].Value);
 
                     Console.WriteLine("[XXX] FilterWheelTurnLastPositionAsync Success");
                     return (true, pos);
@@ -846,7 +876,8 @@ namespace Motic
         public event Action<char, int>? MoveCompleted; // 运动完成（XYZ + 位置）
         public event Action<char>? ErrorOccurred;     // 错误信息
 
-        private string? _pendingTurretFrame; // 暂存第一段帧
+        private string? _pendingTurretFrame;
+        private string? _pendingTurretFrame2;
 
         private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
@@ -874,41 +905,65 @@ namespace Motic
                     // 校验首尾
                     if (!frame.StartsWith("*") || !frame.EndsWith("$")) continue;
 
-                    // 转换器特殊处理
-                    if (frame.StartsWith("*[e"))
+                    //==============================================================================================//
+
+                    // 转换器特殊处理——滤色块（双回复）
+                    if (frame.StartsWith("*RK"))
                     {
-                        // 第一步: 收到 *[eN$，先暂存，不触发
                         _pendingTurretFrame = frame;
-                        continue; // 继续等待下一帧
+                        continue; //发送成功
                     }
-                    else if (frame.StartsWith("*RL"))
+                    else if (frame.StartsWith("*@f"))
                     {
                         if (_pendingTurretFrame != null)
                         {
-                            // 第二步: 收到 *RLN$，把两帧拼接为一个完整响应
                             string turretFrame = _pendingTurretFrame + " " + frame;
                             _pendingTurretFrame = null;
 
-                            // ✅ 当作普通帧处理
-                            _lastResponse = turretFrame;
+                            _lastResponse = turretFrame;//到位
                             _commandTcs?.TrySetResult(turretFrame);
                             _waitHandle.Set();
-
-                            continue;
                         }
                     }
+
+                    // 转换器特殊处理——物镜（双回复）
+                    if (frame.StartsWith("*Rna"))
+                    {
+                        _pendingTurretFrame2 = frame;
+                        continue; //发送成功
+                    }
+                    else if (frame.StartsWith("*[e"))
+                    {
+                        if (_pendingTurretFrame2 != null)
+                        {
+                            string turretFrame = _pendingTurretFrame2 + " " + frame;
+                            _pendingTurretFrame2 = null;
+
+                            _lastResponse = turretFrame;//到位
+                            _commandTcs?.TrySetResult(turretFrame);
+                            _waitHandle.Set();
+                        }
+                    }
+
+                    //==============================================================================================//
 
                     //普通帧处理
                     if (frame.StartsWith("*@")) //复位完成——*@H$ *@I$ *@J$ ；H= X, I=Y, J=Z
                     {
+                        Console.WriteLine(frame);
                         char axis = frame[2];
                         ResetCompleted?.Invoke(axis);
                     }
                     else if (frame.StartsWith("*("))//运动完成——*(X12345678$，× 可为 X or Y or Z
                     {
                         char axis = frame[2];
-                        int position = int.Parse(frame.AsSpan(3, frame.Length - 4));
+
+                        string hexPos = frame.Substring(3, frame.Length - 4); // "00015AC9"
+                        int position = int.Parse(hexPos, System.Globalization.NumberStyles.HexNumber);
+
                         MoveCompleted?.Invoke(axis, position);
+
+                        _commandTcs?.TrySetResult(frame);//todo，移动到位是否要采取该模式?????   待定
                     }
                     else if (frame.StartsWith("*!"))//错误信息——*!XW$，× 可为 X or Y or Z
                     {
@@ -917,6 +972,8 @@ namespace Motic
                     }
                     else// 普通应答，供 SendCommand/SendCommandAsync 使用
                     {
+                        //Console.WriteLine("普通：" + frame);
+
                         _lastResponse = frame;
                         _commandTcs?.TrySetResult(frame);
                         _waitHandle.Set();
