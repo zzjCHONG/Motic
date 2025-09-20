@@ -5,6 +5,10 @@ namespace Motic
 {
     internal class Program
     {
+        public static double UnitXY = 0.625;
+
+        public static double UnitZ = 0.01;
+
         static async Task Main(string[] args)
         {
             Console.WriteLine("Hello, World!");
@@ -17,15 +21,15 @@ namespace Motic
                 Console.WriteLine("连接OK，继续执行...");
 
                 //Console.WriteLine("GetConnectState_" + pX55.GetConnectState());
-                //Console.WriteLine("GetPosition_" + pX55.GetPosition(1, out var pos1) + $" pos:{pos1}");
-                //Console.WriteLine("GetPosition_" + pX55.GetPosition(2, out var pos2) + $"pos:{pos2}");
-                //Console.WriteLine("GetPosition_" + pX55.GetPosition(3, out var pos3) + $"pos:{pos3}");
+                //Console.WriteLine("GetPosition_" + pX55.GetPosition(1, out var pos1) + $" pos:{pos1 * UnitXY}");
+                //Console.WriteLine("GetPosition_" + pX55.GetPosition(2, out var pos2) + $"pos:{pos2 * UnitXY}");
+                //Console.WriteLine("GetPosition_" + pX55.GetPosition(3, out var pos3) + $"pos:{pos3 * UnitZ}");
 
                 //Console.WriteLine(await pX55.SetPosition(1, 0));
                 //Console.WriteLine(await pX55.SetPosition(2, 22222));
                 //Console.WriteLine(await pX55.SetPosition(3, 111));
 
-                //Console.WriteLine(pX55.SetDecSpeed(1,100));
+                //Console.WriteLine(pX55.SetDecSpeed(1, 100));
                 //Console.WriteLine(pX55.SetDecSpeed(2, 100));
                 //Console.WriteLine(pX55.SetDecSpeed(3, 300));
                 //Console.WriteLine(pX55.SetAccSpeed(1, 100));
@@ -35,7 +39,7 @@ namespace Motic
                 //Console.WriteLine(pX55.SetSpeed(2, 100));
                 //Console.WriteLine(pX55.SetSpeed(3, 300));
 
-                //Console.WriteLine(pX55.GetAxisState(1, out var isBusy1) + $"isBusy_{isBusy1}");
+                //Console.WriteLine(pX55.GetAxisState(1, out var isBusy1) + $" GetAxisState_{isBusy1}");
                 //Console.WriteLine(pX55.GetAxisState(2, out var isBusy2) + $"isBusy_{isBusy2}");
                 //Console.WriteLine(pX55.GetAxisState(3, out var isBusy3) + $"isBusy_{isBusy3}");
 
@@ -55,21 +59,21 @@ namespace Motic
                 //Console.WriteLine("GetPosition_" + pX55.GetPosition(2, out pos22) + $"pos:{pos22}");
                 //Console.WriteLine("GetPosition_" + pX55.GetPosition(3, out pos33) + $"pos:{pos33}");
 
-                Console.WriteLine(await pX55.ResetAsync(3));
+                //Console.WriteLine(await pX55.ResetAsync(1));
                 //Console.WriteLine(pX55.Reset(2));
                 //Console.WriteLine(pX55.Reset(3));
 
                 //Console.WriteLine(pX55.GetOpticalPos(out OpticalPathPosition pos) + $"{pos.ToString()}");
 
-                //Console.WriteLine(pX55.SetOpticalPos(OpticalPathPosition.Camera));
+                Console.WriteLine(pX55.SetOpticalPos(OpticalPathPosition.VisualAndCamera));
 
-                //Console.WriteLine(pX55.GetObjectivePosition(out uint pos) + $" {pos}");
+                //Console.WriteLine(pX55.GetObjectivePosition(out uint objpos) + $" {objpos}");
 
                 //Console.WriteLine(await pX55.ObjectiveTurnNextPositionAsync());
 
                 //Console.WriteLine(await pX55.ObjectiveTurnLastPositionAsync());
 
-                //Console.WriteLine(pX55.GetFilterWheelPosition(out var pos) + $" {pos}");
+                //Console.WriteLine(pX55.GetFilterWheelPosition(out var Filterpos) + $" {Filterpos}");
 
                 //Console.WriteLine(await pX55.FilterWheelTurnNextPositionAsync());
 

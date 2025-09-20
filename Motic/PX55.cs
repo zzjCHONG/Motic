@@ -1,7 +1,5 @@
-﻿using System.Diagnostics;
-using System.IO.Ports;
+﻿using System.IO.Ports;
 using System.Text.RegularExpressions;
-using System.Threading;
 
 namespace Motic
 {
@@ -23,6 +21,9 @@ namespace Motic
         private readonly ManualResetEventSlim _dataReceivedEvent = new(false);
         private string _receivedDataforValid = string.Empty;
         private readonly int _validTimeout = 1000;
+
+        public static double UnitXY = 0.625;//移动的输入输出需转化
+        public static double UnitZ = 0.01;
 
         public PX55()
         {
@@ -388,7 +389,15 @@ namespace Motic
             if (!Enum.IsDefined(typeof(Axis), axis)) return false;
             string command = $"*ST{(Axis)axis}$";//*STX$
 
-            _serialPort!.Write(command);//静止状态，无返回；运动过程中，下位机返回“运动完成”
+            //_serialPort!.Write(command);//静止状态，无返回；运动过程中，下位机返回“运动完成”
+
+            if (!SendCommand(command, out var resp)) return false;
+
+            char axisResp = resp[2];
+            string hexPos = resp.Substring(3, resp.Length - 4);
+            int position = int.Parse(hexPos, System.Globalization.NumberStyles.HexNumber);
+
+            Console.WriteLine($"[XXX] Stop Success：{axisResp}-{position}");
 
             return true;
         }
@@ -401,7 +410,7 @@ namespace Motic
         /// <param name="isForward">true为正向</param>
         /// <param name="pos"></param>
         /// <returns></returns>
-        public async Task<bool> RelativeMove(uint axis,bool isForward, int pos)
+        public async Task<bool> RelativeMove(uint axis, bool isForward, int pos)
         {
             if (!Enum.IsDefined(typeof(Axis), axis)) return false;
             var dir = isForward ? "+" : "-";
@@ -418,7 +427,7 @@ namespace Motic
                 string hexPos = resp.Substring(3, resp.Length - 4);
                 int position = int.Parse(hexPos, System.Globalization.NumberStyles.HexNumber);
 
-                Console.WriteLine($"[XXX] RelativeMoveAsync Success：{axisResp}-{position}");
+                Console.WriteLine($"[XXX] RelativeMoveAsync Success：{axisResp}-{position * UnitXY}");
                 return true;
             }
 
@@ -490,28 +499,28 @@ namespace Motic
         /// </summary>
         /// <param name="axis"></param>
         /// <returns></returns>
-        public bool Reset(uint axis)
-        {
-            string command;
-            switch (axis)
-            {
-                case 1:
-                    command = "*\"X00000000$";
-                    break;
-                case 2:
-                    command = "*\"Y00000000$";
-                    break;
-                case 3:
-                    command = "*\"Z00000000$";
-                    break;
-                default:
-                    return false;
-            }
+        //public bool Reset(uint axis)
+        //{
+        //    string command;
+        //    switch (axis)
+        //    {
+        //        case 1:
+        //            command = "*\"X00000000$";
+        //            break;
+        //        case 2:
+        //            command = "*\"Y00000000$";
+        //            break;
+        //        case 3:
+        //            command = "*\"Z00000000$";
+        //            break;
+        //        default:
+        //            return false;
+        //    }
 
-            _serialPort!.Write(command);//等待“复位完成”返回
+        //    _serialPort!.Write(command);//等待“复位完成”返回
 
-            return true;
-        }
+        //    return true;
+        //}
 
         /// <summary>
         /// 复位需要使用异步
@@ -651,11 +660,11 @@ namespace Motic
 
                 if (!CheckReturnMsg(command, resp)) return false;
 
-                var match = Regex.Match(resp, @"\d+$");
+                var match = Regex.Match(resp, @"\*(?:-[A-Z])(\d+)\$");
                 if (!match.Success) return false;
 
-                var res = int.Parse(match.Value) == posInput;
-                if (res) Console.WriteLine("[XXX] SetOpticalPos Success!");
+                var res = int.Parse(match.Groups[1].Value) == posInput;
+                if (res) Console.WriteLine("[XXX] SetOpticalPos Success! " + $"{pos}");
                 return res;
             }
             catch (Exception e)
@@ -876,8 +885,9 @@ namespace Motic
         public event Action<char, int>? MoveCompleted; // 运动完成（XYZ + 位置）
         public event Action<char>? ErrorOccurred;     // 错误信息
 
-        private string? _pendingTurretFrame;
-        private string? _pendingTurretFrame2;
+        private string? _objFrame;
+        private string? _visualFrame;
+        private string? _filterFrame;
 
         private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
@@ -905,49 +915,56 @@ namespace Motic
                     // 校验首尾
                     if (!frame.StartsWith("*") || !frame.EndsWith("$")) continue;
 
-                    //==============================================================================================//
+                    //=============================================特殊回复=================================================//
 
-                    // 转换器特殊处理——滤色块（双回复）
-                    if (frame.StartsWith("*RK"))
+                    // 转换器特殊处理——滤色块（多重回复）//key3 key4
+                    if (frame.StartsWith("*RK51") || frame.StartsWith("*RK71"))
                     {
-                        _pendingTurretFrame = frame;
-                        continue; //发送成功
+                        _filterFrame = frame;
+                        continue;
                     }
-                    else if (frame.StartsWith("*@f"))
+                    if (_filterFrame != null && frame.StartsWith("*[rC"))//*[rCH$
                     {
-                        if (_pendingTurretFrame != null)
-                        {
-                            string turretFrame = _pendingTurretFrame + " " + frame;
-                            _pendingTurretFrame = null;
+                        _lastResponse = frame;//到位
+                        _commandTcs?.TrySetResult(frame);
+                        _waitHandle.Set();
+                    }
 
-                            _lastResponse = turretFrame;//到位
-                            _commandTcs?.TrySetResult(turretFrame);
+                    // 转换器特殊处理——物镜（多回复）  //Key1 Key2
+                    if (frame.StartsWith("*RK11") || frame.StartsWith("*RK31"))
+                    {
+                        _objFrame = frame;
+                        continue;
+                    }
+                    if (_objFrame != null && frame.StartsWith("*[e"))//*[eH$
+                    {
+                        _lastResponse = frame;
+                        _commandTcs?.TrySetResult(frame);
+                        _waitHandle.Set();
+                    }
+
+                    // 转换器特殊处理——观察模式（多回复）
+                    if (frame.StartsWith("*-FA0"))
+                    {
+                        _visualFrame = frame;
+                        Console.WriteLine("_visualFrame" + _visualFrame);
+                        continue;
+                    }
+                    if (_visualFrame != null && frame.StartsWith("*-F0"))//*-F0H$
+                    {
+                        Console.WriteLine(frame);
+                        if (_visualFrame != null)
+                        {
+                            _lastResponse = frame;
+                            _commandTcs?.TrySetResult(frame);
                             _waitHandle.Set();
+
+                            _visualFrame = null;
                         }
                     }
 
-                    // 转换器特殊处理——物镜（双回复）
-                    if (frame.StartsWith("*Rna"))
-                    {
-                        _pendingTurretFrame2 = frame;
-                        continue; //发送成功
-                    }
-                    else if (frame.StartsWith("*[e"))
-                    {
-                        if (_pendingTurretFrame2 != null)
-                        {
-                            string turretFrame = _pendingTurretFrame2 + " " + frame;
-                            _pendingTurretFrame2 = null;
-
-                            _lastResponse = turretFrame;//到位
-                            _commandTcs?.TrySetResult(turretFrame);
-                            _waitHandle.Set();
-                        }
-                    }
-
                     //==============================================================================================//
 
-                    //普通帧处理
                     if (frame.StartsWith("*@")) //复位完成——*@H$ *@I$ *@J$ ；H= X, I=Y, J=Z
                     {
                         Console.WriteLine(frame);
@@ -970,14 +987,16 @@ namespace Motic
                         char axis = frame[2];
                         ErrorOccurred?.Invoke(axis);
                     }
-                    else// 普通应答，供 SendCommand/SendCommandAsync 使用
+                    else if (_objFrame == null && _filterFrame == null && _visualFrame == null)  // 普通应答，供 SendCommand/SendCommandAsync 使用
                     {
-                        //Console.WriteLine("普通：" + frame);
-
                         _lastResponse = frame;
                         _commandTcs?.TrySetResult(frame);
                         _waitHandle.Set();
                     }
+                    continue;
+
+                    //Console.WriteLine(frame);
+                    //continue;
                 }
 
                 // 防止缓存无限增长
@@ -991,7 +1010,7 @@ namespace Motic
             }
         }
 
-        public async Task<(bool, string)> SendCommandAsync(string command, int timeoutMs = 2000)
+        public async Task<(bool, string)> SendCommandAsync(string command, int timeoutMs = 3000)
         {
             if (!_serialPort!.IsOpen)
                 throw new InvalidOperationException("串口未打开");
@@ -1016,7 +1035,7 @@ namespace Motic
             }
         }
 
-        public bool SendCommand(string command, out string respond, int timeoutMs = 2000)
+        public bool SendCommand(string command, out string respond, int timeoutMs = 3000)
         {
             if (!_serialPort!.IsOpen)
                 throw new InvalidOperationException("串口未打开");
