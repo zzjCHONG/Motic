@@ -4,28 +4,28 @@ namespace Motic
 {
     public partial class PX55MoticMotor : IMotor
     {
-        private readonly PX55 _pX55;
+        private readonly PX55 pX55;
         private readonly uint xAxis = 1;
         private readonly uint yAxis = 2;
         private readonly uint zAxis = 3;
 
         public PX55MoticMotor()
         {
-            _pX55 = new PX55();
+            pX55 ??= new PX55();
         }
 
-        public Dictionary<InfoEnum, string> InfoDirectory => new() { { InfoEnum.Model, "Motic-PX55PLUS" }, { InfoEnum.Version, _pX55.GetVersion(out var version) ? version : "" }, { InfoEnum.FrameWork, "" } };
+        public Dictionary<InfoEnum, string> InfoDirectory => new() { { InfoEnum.Model, "Motic-PX55PLUS" }, { InfoEnum.Version, pX55.GetVersion(out var version) ? version : "" }, { InfoEnum.FrameWork, "" } };
 
-        public double XSpeed { get => _pX55.XspeedMM; set => _pX55.SetSpeed(1, (int)value); }
-        public double YSpeed { get => _pX55.YspeedMM; set => _pX55.SetSpeed(2, (int)value); }
-        public double ZSpeed { get => _pX55.ZspeedMM; set => _pX55.SetSpeed(3, (int)value); }
+        public double XSpeed { get => pX55.XspeedMM; set => pX55.SetSpeed(1, (int)value); }
+        public double YSpeed { get => pX55.YspeedMM; set => pX55.SetSpeed(2, (int)value); }
+        public double ZSpeed { get => pX55.ZspeedMM; set => pX55.SetSpeed(3, (int)value); }
 
         public double X
         {
             get
             {
-                _pX55.GetPosition(xAxis, out var pos);
-                return pos * _pX55.UnitXYUM;//微米
+                pX55.GetPosition(xAxis, out var pos);
+                return pos * pX55.UnitXYUM;//微米
             }
         }
 
@@ -33,8 +33,8 @@ namespace Motic
         {
             get
             {
-                _pX55.GetPosition(yAxis, out var pos);
-                return pos * _pX55.UnitXYUM;//微米
+                pX55.GetPosition(yAxis, out var pos);
+                return pos * pX55.UnitXYUM;//微米
             }
         }
 
@@ -42,8 +42,8 @@ namespace Motic
         {
             get
             {
-                _pX55.GetPosition(zAxis, out var pos);
-                return pos * _pX55.UnitZUM;//微米
+                pX55.GetPosition(zAxis, out var pos);
+                return pos * pX55.UnitZUM;//微米
             }
         }
 
@@ -51,7 +51,7 @@ namespace Motic
         {
             get
             {
-                _pX55.GetAxisState(xAxis, out var isBusy);
+                pX55.GetAxisState(xAxis, out var isBusy);
                 return isBusy;
             }
         }
@@ -60,7 +60,7 @@ namespace Motic
         {
             get
             {
-                _pX55.GetAxisState(yAxis, out var isBusy);
+                pX55.GetAxisState(yAxis, out var isBusy);
                 return isBusy;
             }
         }
@@ -69,18 +69,18 @@ namespace Motic
         {
             get
             {
-                _pX55.GetAxisState(zAxis, out var isBusy);
+                pX55.GetAxisState(zAxis, out var isBusy);
                 return isBusy;
             }
         }
 
-        public bool XLimit =>  throw new NotImplementedException();//原函数未提供
+        public bool XLimit => throw new NotImplementedException();//原函数未提供
 
         public bool YLimit => throw new NotImplementedException();
 
         public bool ZLimit => throw new NotImplementedException();
 
-        public bool InitMotor(string com) => _pX55.OpenCom(com);
+        public bool InitMotor(string com) => pX55.OpenCom(com);
 
         public Task<bool> MulAxisAbsoluteMoveAsync(Dictionary<uint, double> axisPositions) => throw new NotImplementedException();
 
@@ -89,7 +89,7 @@ namespace Motic
         public bool ResetParam() => throw new NotImplementedException();
 
         public bool SetOriginPos()
-            => _pX55.SetPosition(xAxis, 0) && _pX55.SetPosition(yAxis, 0) && _pX55.SetPosition(zAxis, 0);
+            => pX55.SetPosition(xAxis, 0) && pX55.SetPosition(yAxis, 0) && pX55.SetPosition(zAxis, 0);
 
         public bool SetXOffset(double x) => throw new NotImplementedException();
 
@@ -98,8 +98,8 @@ namespace Motic
         /// </summary>
         /// <param name="x">真实世界数值</param>
         /// <returns></returns>
-        public async Task<bool> SetXOffsetAsync(double x) 
-            => await _pX55.RelativeMoveAsync(xAxis, x > 0, (int)Math.Round(x / _pX55.UnitXYUM, MidpointRounding.AwayFromZero));
+        public async Task<bool> SetXOffsetAsync(double x)
+            => await pX55.RelativeMoveAsync(xAxis, x > 0, (int)Math.Round(x / pX55.UnitXYUM, MidpointRounding.AwayFromZero));
 
         public bool SetXPosition(double xPosition) => throw new NotImplementedException();
 
@@ -109,59 +109,86 @@ namespace Motic
         /// <param name="xPosition">真实世界数值</param>
         /// <returns></returns>
         public Task<bool> SetXPositionAsync(double xPosition)
-            => _pX55.AbsoluteMoveAsync(xAxis, (int)(xPosition));
+            => pX55.AbsoluteMoveAsync(xAxis, (int)(xPosition));
 
         public bool SetYOffset(double y) => throw new NotImplementedException();
 
         public async Task<bool> SetYOffsetAsync(double y)
-            => await _pX55.RelativeMoveAsync(yAxis, y > 0, (int) Math.Round(y / _pX55.UnitXYUM, MidpointRounding.AwayFromZero));
+            => await pX55.RelativeMoveAsync(yAxis, y > 0, (int)Math.Round(y / pX55.UnitXYUM, MidpointRounding.AwayFromZero));
 
         public bool SetYPosition(double yPosition) => throw new NotImplementedException();
 
         public async Task<bool> SetYPositionAsync(double yPosition)
-            => await _pX55.AbsoluteMoveAsync(yAxis, (int)(yPosition));
+            => await pX55.AbsoluteMoveAsync(yAxis, (int)(yPosition));
 
         public bool SetZOffset(double z) => throw new NotImplementedException();
 
         public async Task<bool> SetZOffsetAsync(double z)
-            => await _pX55.RelativeMoveAsync(zAxis, z > 0, (int)Math.Round(z / _pX55.UnitZUM, MidpointRounding.AwayFromZero));
+            => await pX55.RelativeMoveAsync(zAxis, z > 0, (int)Math.Round(z / pX55.UnitZUM, MidpointRounding.AwayFromZero));
 
         public bool SetZPosition(double zPosition) => throw new NotImplementedException();
 
         public async Task<bool> SetZPositionAsync(double zPosition)
-            => await _pX55.AbsoluteMoveAsync(zAxis, (int)(zPosition));
+            => await pX55.AbsoluteMoveAsync(zAxis, (int)(zPosition));
 
         public bool Stop()
-            => _pX55.Stop(xAxis) && _pX55.Stop(yAxis) && _pX55.Stop(zAxis);
+            => pX55.Stop(xAxis) && pX55.Stop(yAxis) && pX55.Stop(zAxis);
 
         public bool UnInitializeMotor()
-            => _pX55.DisConnect();
+            => pX55.DisConnect();
 
         public bool XResetPosition() => throw new NotImplementedException();
 
         public async Task<bool> XResetPositionAsync()
-            => await _pX55.ResetAsync(xAxis);
+            => await pX55.ResetAsync(xAxis);
 
         public bool YResetPosition() => throw new NotImplementedException();
 
         public async Task<bool> YResetPositionAsync()
-            => await _pX55.ResetAsync(yAxis);
+            => await pX55.ResetAsync(yAxis);
 
         public bool ZResetPosition() => throw new NotImplementedException();
 
         public async Task<bool> ZResetPositionAsync()
-            => await _pX55.ResetAsync(zAxis);
+            => await pX55.ResetAsync(zAxis);
 
     }
 
-    public partial class PX55MoticMotor : IMotorAdvanced
+    public partial class PX55MoticMotor
     {
-        public bool GetOpticalPos(out uint pos)
+        public uint OpticalPos
+        {
+            get
+            {
+                if (!GetOpticalPos(out uint pos)) return 0;
+                return pos;
+            }
+        }
+
+        public uint ObjectivePos
+        {
+            get
+            {
+                if (!GetObjectivePosition(out uint pos)) return 0;
+                return pos;
+            }
+        }
+
+        public uint FilterWheelPos
+        {
+            get
+            {
+                if (!GetFilterWheelPosition(out uint pos)) return 0;
+                return pos;
+            }
+        }
+
+        private bool GetOpticalPos(out uint pos)
         {
             pos = 0;
             try
             {
-                if (_pX55.GetOpticalPos(out var opticalPos))
+                if (pX55.GetOpticalPos(out var opticalPos))
                 {
                     pos = (uint)opticalPos;
                     return true;
@@ -186,8 +213,22 @@ namespace Motic
                     return false;
                 }
 
+                // 获取当前位置
+                if (!pX55.GetOpticalPos(out PX55.OpticalPathPosition currentPos))
+                {
+                    Console.WriteLine("[PX55MoticMotor] SetOpticalPos Failed: Cannot get current position.");
+                    return false;
+                }
+
+                // 如果已经在目标位置，直接返回成功
+                if ((int)currentPos == pos)
+                {
+                    Console.WriteLine($"[PX55MoticMotor] SetOpticalPos: Already at position {pos}");
+                    return true;
+                }
+
                 var opticalPos = (PX55.OpticalPathPosition)pos;
-                return await _pX55.SetOpticalPos(opticalPos);
+                return await pX55.SetOpticalPos(opticalPos);
             }
             catch (Exception ex)
             {
@@ -196,11 +237,11 @@ namespace Motic
             }
         }
 
-        public bool GetObjectivePosition(out uint pos)
+        private bool GetObjectivePosition(out uint pos)
         {
             try
             {
-                return _pX55.GetObjectivePosition(out pos);
+                return pX55.GetObjectivePosition(out pos);
             }
             catch (Exception ex)
             {
@@ -222,7 +263,7 @@ namespace Motic
                 }
 
                 // 获取当前位置
-                if (!_pX55.GetObjectivePosition(out uint currentPos))
+                if (!pX55.GetObjectivePosition(out uint currentPos))
                 {
                     Console.WriteLine("[PX55MoticMotor] SetObjectivePosition Failed: Cannot get current position.");
                     return false;
@@ -250,11 +291,11 @@ namespace Motic
                     {
                         if (forward)
                         {
-                            success = await _pX55.ObjectiveTurnNextPositionAsync();
+                            success = await pX55.ObjectiveTurnNextPositionAsync();
                         }
                         else
                         {
-                            success = await _pX55.ObjectiveTurnLastPositionAsync();
+                            success = await pX55.ObjectiveTurnLastPositionAsync();
                         }
 
                         if (!success)
@@ -277,11 +318,11 @@ namespace Motic
                     {
                         if (forward)
                         {
-                            success = await _pX55.ObjectiveTurnNextPositionAsync();
+                            success = await pX55.ObjectiveTurnNextPositionAsync();
                         }
                         else
                         {
-                            success = await _pX55.ObjectiveTurnLastPositionAsync();
+                            success = await pX55.ObjectiveTurnLastPositionAsync();
                         }
 
                         if (!success)
@@ -297,7 +338,7 @@ namespace Motic
 
                 // 验证是否到达目标位置
                 await Task.Delay(200); // 等待转动完全完成
-                if (_pX55.GetObjectivePosition(out uint finalPos) && finalPos == pos)
+                if (pX55.GetObjectivePosition(out uint finalPos) && finalPos == pos)
                 {
                     Console.WriteLine($"[PX55MoticMotor] SetObjectivePosition Success: {pos}");
                     return true;
@@ -315,11 +356,11 @@ namespace Motic
             }
         }
 
-        public bool GetFilterWheelPosition(out uint pos)
+        private bool GetFilterWheelPosition(out uint pos)
         {
             try
             {
-                return _pX55.GetFilterWheelPosition(out pos);
+                return pX55.GetFilterWheelPosition(out pos);
             }
             catch (Exception ex)
             {
@@ -329,28 +370,28 @@ namespace Motic
             }
         }
 
-        public async Task<bool> setFilterWheelPosition(uint pos)
+        public async Task<bool> SetFilterWheelPosition(uint pos)
         {
             try
             {
                 // 验证位置范围 (1-8)
                 if (pos < 1 || pos > 8)
                 {
-                    Console.WriteLine($"[PX55MoticMotor] setFilterWheelPosition Failed: Invalid position {pos}. Valid range is 1-8.");
+                    Console.WriteLine($"[PX55MoticMotor] SetFilterWheelPosition Failed: Invalid position {pos}. Valid range is 1-8.");
                     return false;
                 }
 
                 // 获取当前位置
-                if (!_pX55.GetFilterWheelPosition(out uint currentPos))
+                if (!pX55.GetFilterWheelPosition(out uint currentPos))
                 {
-                    Console.WriteLine("[PX55MoticMotor] setFilterWheelPosition Failed: Cannot get current position.");
+                    Console.WriteLine("[PX55MoticMotor] SetFilterWheelPosition Failed: Cannot get current position.");
                     return false;
                 }
 
                 // 如果已经在目标位置，直接返回成功
                 if (currentPos == pos)
                 {
-                    Console.WriteLine($"[PX55MoticMotor] setFilterWheelPosition: Already at position {pos}");
+                    Console.WriteLine($"[PX55MoticMotor] SetFilterWheelPosition: Already at position {pos}");
                     return true;
                 }
 
@@ -369,18 +410,18 @@ namespace Motic
                     {
                         if (forward)
                         {
-                            var result = await _pX55.FilterWheelTurnNextPositionAsync();
+                            var result = await pX55.FilterWheelTurnNextPositionAsync();
                             success = result.Item1;
                         }
                         else
                         {
-                            var result = await _pX55.FilterWheelTurnLastPositionAsync();
+                            var result = await pX55.FilterWheelTurnLastPositionAsync();
                             success = result.Item1;
                         }
 
                         if (!success)
                         {
-                            Console.WriteLine($"[PX55MoticMotor] setFilterWheelPosition Failed at step {i + 1}");
+                            Console.WriteLine($"[PX55MoticMotor] SetFilterWheelPosition Failed at step {i + 1}");
                             return false;
                         }
 
@@ -398,18 +439,18 @@ namespace Motic
                     {
                         if (forward)
                         {
-                            var result = await _pX55.FilterWheelTurnNextPositionAsync();
+                            var result = await pX55.FilterWheelTurnNextPositionAsync();
                             success = result.Item1;
                         }
                         else
                         {
-                            var result = await _pX55.FilterWheelTurnLastPositionAsync();
+                            var result = await pX55.FilterWheelTurnLastPositionAsync();
                             success = result.Item1;
                         }
 
                         if (!success)
                         {
-                            Console.WriteLine($"[PX55MoticMotor] setFilterWheelPosition Failed at step {i + 1}");
+                            Console.WriteLine($"[PX55MoticMotor] SetFilterWheelPosition Failed at step {i + 1}");
                             return false;
                         }
 
@@ -420,20 +461,20 @@ namespace Motic
 
                 // 验证是否到达目标位置
                 await Task.Delay(200); // 等待转动完全完成
-                if (_pX55.GetFilterWheelPosition(out uint finalPos) && finalPos == pos)
+                if (pX55.GetFilterWheelPosition(out uint finalPos) && finalPos == pos)
                 {
-                    Console.WriteLine($"[PX55MoticMotor] setFilterWheelPosition Success: {pos}");
+                    Console.WriteLine($"[PX55MoticMotor] SetFilterWheelPosition Success: {pos}");
                     return true;
                 }
                 else
                 {
-                    Console.WriteLine($"[PX55MoticMotor] setFilterWheelPosition Failed: Expected {pos}, got {finalPos}");
+                    Console.WriteLine($"[PX55MoticMotor] SetFilterWheelPosition Failed: Expected {pos}, got {finalPos}");
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[PX55MoticMotor] setFilterWheelPosition Failed: {ex.Message}");
+                Console.WriteLine($"[PX55MoticMotor] SetFilterWheelPosition Failed: {ex.Message}");
                 return false;
             }
         }

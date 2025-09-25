@@ -7,7 +7,7 @@
     xmlns:local="clr-namespace:MoticWpf"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     Width="800"
-    Height="660"
+    Height="695"
     ResizeMode="CanMinimize"
     mc:Ignorable="d">
 
@@ -27,7 +27,7 @@
             Margin="2"
             BorderBrush="Gray"
             BorderThickness="1"
-            CornerRadius="8">
+            CornerRadius="3">
             <local:MoticMotorView />
         </Border>
     </StackPanel>

@@ -1,7 +1,7 @@
 ﻿
 namespace Simscop.Pl.Core.Interfaces;
 
-public interface IMotor
+public partial interface IMotor
 {
     /// <summary>
     /// 设备基本属性字典，比如 model，serialNumber ，FirmwareVersion等
@@ -65,4 +65,19 @@ public enum InfoEnum
     Model,//设备名称
     FirmwareVersion,//固件版本号
     SerialNumber,//设备序列号
+}
+
+public partial interface IMotor
+{
+    public uint OpticalPos { get; }
+
+    public uint ObjectivePos { get; }
+
+    public uint FilterWheelPos { get; }
+
+    public Task<bool> SetOpticalPos(uint pos);
+
+    public Task<bool> SetObjectivePosition(uint pos);
+
+    public Task<bool> SetFilterWheelPosition(uint pos);
 }

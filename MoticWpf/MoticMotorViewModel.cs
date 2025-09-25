@@ -194,6 +194,13 @@ namespace MoticWpf
             XSpeed = 1000;
             YSpeed = 1000;
             ZSpeed = 4000;
+
+            OpticalPos = _motor.OpticalPos;
+            ObjectivePos = _motor.ObjectivePos;
+            FilterWheelPos = _motor.FilterWheelPos;
+            TargetOpticalPos = _motor.OpticalPos;
+            TargetObjectivePos = _motor.ObjectivePos;
+            TargetFilterWheelPos = _motor.FilterWheelPos;
         }
 
         [ObservableProperty]
@@ -231,10 +238,9 @@ namespace MoticWpf
                 Y = _motor!.Y;
                 Z = _motor!.Z;
 
-                //XLimit = _motor!.XLimit;
-                //YLimit = _motor!.YLimit;
-                //ZLimit = _motor!.ZLimit;
-
+                OpticalPos =_motor!.OpticalPos;
+                ObjectivePos = _motor!.ObjectivePos;
+                FilterWheelPos = _motor!.FilterWheelPos;
 
             });
         }
@@ -432,17 +438,21 @@ namespace MoticWpf
 
             if (props!.Count <= 0) return;
 
+            int num = 0;
             var output = string.Join(" ", props.Select(p => $"（{p.X}，{p.Y}）"));
             var res = MessageBox.Show($"STITCH-确认扫描？具体点位：{output}\r\n共计{props.Count}个\r\n间距：X_{width} Y_{height}", "提醒", MessageBoxButton.OKCancel, MessageBoxImage.Information);
             if (res == MessageBoxResult.OK)
             {
+                num++;
                 var sp = Stopwatch.StartNew();
                 foreach (var item in props)
                 {
-                    await _motor!.SetXPositionAsync(item.X);
-                    await _motor.SetYPositionAsync(item.Y);
+                    if (!await _motor!.SetXPositionAsync(item.X)) Debug.WriteLine("SetXPositionAsync Error");
+                    if (!await _motor.SetYPositionAsync(item.Y)) Debug.WriteLine("SetYPositionAsync Error");
 
-                    Debug.WriteLine($"X_{item.X},Y_{item.Y}");
+                    Debug.WriteLine($"{num} X_{item.X},Y_{item.Y}");
+
+                    //await Task.Delay(500);
                 }
                 sp.Stop();
                 Debug.WriteLine($"STITCH-FINISH_{props.Count}_{sp.ElapsedMilliseconds}ms!\r\n");
@@ -452,10 +462,10 @@ namespace MoticWpf
         [RelayCommand]
         async Task ScanforRaman()
         {
-            double RectXStart = -1500;
-            double RectYStart = -300;
-            double RectXEnd = -1200;
-            double RectYEnd = 100;
+            double RectXStart = 15000;
+            double RectYStart = 3000;
+            double RectXEnd = 12000;
+            double RectYEnd = 1000;
             var startx = Math.Min(RectXStart, RectXEnd);
             var starty = Math.Min(RectYStart, RectYEnd);
 
@@ -466,8 +476,8 @@ namespace MoticWpf
             //double RectYInterval = Math.Abs(RectYStart - RectYEnd) / RectYCount;//间距
 
             //控制间距
-            double RectXInterval = 40;
-            double RectYInterval = 40;
+            double RectXInterval = 400;
+            double RectYInterval = 400;
             int RectXCount = (int)Math.Floor(Math.Abs(RectYStart - RectYEnd) / RectXInterval);
             int RectYCount = (int)Math.Floor(Math.Abs(RectYStart - RectYEnd) / RectYInterval);
 
@@ -504,8 +514,8 @@ namespace MoticWpf
                 foreach (var item in props)
                 {
                     index++;
-                    await _motor!.SetXPositionAsync(item.X);
-                    await _motor.SetYPositionAsync(item.Y);
+                    if (!await _motor!.SetXPositionAsync(item.X)) Debug.WriteLine("SetXPositionAsync Error");
+                    if (!await _motor.SetYPositionAsync(item.Y)) Debug.WriteLine("SetYPositionAsync Error");
                     await Task.Delay(10);
                     Debug.WriteLine($"{index} X_{item.X}__{_motor!.X:0.00}__{Math.Abs(item.X - _motor!.X):0.00},Y_{item.Y}__{_motor!.Y:0.00}__{Math.Abs(item.Y - _motor!.Y):0.00}");
                 }
@@ -530,7 +540,7 @@ namespace MoticWpf
             var props4 = GenerateZPoints(2, -1, 10, 3, 17); // [2, 4, 6, 8, 10]
 
             // 中点模式：中心5，步长1，共5个点
-            var props5 = GenerateZPoints(3, 5, -1, 4, 35); // [3, 4, 5, 6, 7]
+            var props5 = GenerateZPoints(3, 500, 600, 4, 35); // [3, 4, 5, 6, 7]
 
             var props = props5;
 
@@ -543,7 +553,8 @@ namespace MoticWpf
                 foreach (var item in props)
                 {
                     index++;
-                    await _motor!.SetZPositionAsync(item);
+
+                    if (!await _motor!.SetZPositionAsync(item)) Debug.WriteLine("SetXPositionAsync Error");
 
                     await Task.Delay(10);
                     Debug.WriteLine($"{index} Z_{item}__{_motor!.Z:0.00}__{Math.Abs(item - _motor!.Z):0.00}");
@@ -622,6 +633,40 @@ namespace MoticWpf
 
             return points;
         }
+    }
+
+    public partial class MoticMotorViewModel
+    {
+        [ObservableProperty]
+        private uint targetOpticalPos;
+
+        [ObservableProperty]
+        private uint opticalPos;
+
+        [ObservableProperty]
+        private uint targetObjectivePos;
+
+        [ObservableProperty]
+        private uint objectivePos;
+
+        [ObservableProperty]
+        private uint targetFilterWheelPos;
+
+        [ObservableProperty]
+        private uint filterWheelPos;
+
+        [RelayCommand]
+        private async Task<bool> SetOpticalPosAsync()
+            => await _motor!.SetOpticalPos(TargetOpticalPos);
+
+        [RelayCommand]
+        private async Task<bool> SetObjectivePosAsync()
+            => await _motor!.SetObjectivePosition(TargetObjectivePos);
+
+        [RelayCommand]
+        private async Task<bool> SetFilterWheelPosAsync()
+            => await _motor!.SetFilterWheelPosition(TargetFilterWheelPos);
+
     }
 
 }

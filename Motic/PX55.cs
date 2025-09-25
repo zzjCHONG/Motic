@@ -1,5 +1,4 @@
 ﻿using System.IO.Ports;
-using System.Net;
 using System.Text.RegularExpressions;
 
 namespace Motic
@@ -196,53 +195,6 @@ namespace Motic
         }
 
         ~PX55() => Dispose();
-    }
-
-    /// <summary>
-    /// Station
-    /// </summary>
-    public partial class PX55
-    {
-        private readonly int UnitZSpeedMM = 1250;
-        private readonly int UnitXYSpeedMM = 100;
-        public double UnitXYUM { get; set; } = 0.625;
-        public double UnitZUM { get; set; } = 0.01;
-        public int XspeedMM { get; set; }
-        public int YspeedMM { get; set; }   
-        public int ZspeedMM { get; set; }
-
-        /// <summary>
-        /// 122100
-        /// </summary>
-        public double XUpperLimit { get; set; } = 120000;
-
-        /// <summary>
-        /// 82537
-        /// </summary>
-        public double YUpperLimit { get; set; } = 82000;
-
-        /// <summary>
-        /// 16556.59
-        /// </summary>
-        public double ZUpperLimit { get; set; } = 16000;
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public double XLowerLimit { get; set; } = -190;
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public double YLowerLimit { get; set; } = -190;
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public double ZLowerLimit { get; set; } = -80;
-
-        //note：运动完成：当调用相对运动、停止运动、复位命令时，会触发该状态，当触发限位或运动到位后，都会触发该状态。无法以此作为到位判断。
-        //到位判断使用查询坐标状态命令
 
         /// <summary>
         /// 获取连接状态
@@ -275,6 +227,42 @@ namespace Motic
         }
 
         /// <summary>
+        /// 获取连接状态
+        /// </summary>
+        /// <returns></returns>
+        public bool SetDebugState(bool isOpen)
+        {
+            string command = isOpen ? "*?DBG1$" : "*?DBG0$";
+
+            _serialPort!.Write(command);//该设置无返回值
+
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Station
+    /// </summary>
+    public partial class PX55
+    {
+        private readonly int UnitZSpeedMM = 1250;
+        private readonly int UnitXYSpeedMM = 100;
+
+        public double UnitXYUM { get; set; } = 0.625;
+        public double UnitZUM { get; set; } = 0.01;
+
+        public int XspeedMM { get; set; }
+        public int YspeedMM { get; set; }
+        public int ZspeedMM { get; set; }
+
+        public double XUpperLimit { get; set; } = 120000;//122100
+        public double YUpperLimit { get; set; } = 82000;//82537
+        public double ZUpperLimit { get; set; } = 16000;//16556.59
+        public double XLowerLimit { get; set; } = -190;
+        public double YLowerLimit { get; set; } = -190;
+        public double ZLowerLimit { get; set; } = -80;
+
+        /// <summary>
         /// 获取当前位置
         /// </summary>
         /// <param name="axis"></param>
@@ -299,7 +287,7 @@ namespace Motic
 
                 // 例如 resp = "^X0000214E"
                 if (!resp.StartsWith("^") || resp.Length < 10)
-                    Console.WriteLine("格式不正确_"+resp);
+                    Console.WriteLine("格式不正确_" + resp);
 
                 var axisResp = resp[1];            // 第2位是轴 X/Y/Z
                 var hexValue = resp.Substring(2);  // 取后面的 8 位位置值
@@ -333,7 +321,7 @@ namespace Motic
 
                 if (!SendCommand(command, out var resp, $"*^{(Axis)axis}{pos:X8}")) return false;
 
-                Console.WriteLine("[XXX] SetPosition Success "+ resp);
+                Console.WriteLine("[XXX] SetPosition Success " + resp);
 
                 var posUnitTran = (Axis)axis == Axis.Z ? UnitZUM : UnitXYUM;
                 var actualTargetPos = currentPos * posUnitTran;
@@ -698,7 +686,7 @@ namespace Motic
                         return false;
                 }
 
-                var (ok, resp) = await SendCommandAsync(command, $"*@{expectAxis}$", timeoutMs);
+                var (ok, resp) = await SendCommandAsync(command, $"*@{expectAxis}$", timeoutMs);//会同时得到到位的校验"*(HHHH"，但此次不使用
                 if (ok)
                 {
                     if (!CheckReturnMsg(command, resp)) return false;
@@ -782,7 +770,7 @@ namespace Motic
                         return false;
                 }
 
-                Console.WriteLine("[XXX] GetOpticalPos Success!");
+                //Console.WriteLine("[XXX] GetOpticalPos Success!");
                 return true;
             }
             catch (Exception e)
@@ -811,7 +799,7 @@ namespace Motic
                 var code = posInput.ToString("D2");
                 string command = $"*-FFF{code}$";//*-FFF01$
 
-                var (ok, resp) = await SendCommandAsync(command, "*-F0");
+                var (ok, resp) = await SendCommandAsync(command, "*-F0", 5000);
                 if (ok)
                 {
                     if (!CheckReturnMsg(command, resp)) return false;
@@ -854,7 +842,7 @@ namespace Motic
             {
                 string command = $"*Key1$";
 
-                var (ok, resp) = await SendCommandAsync(command, "*[e");//"*[e1$"
+                var (ok, resp) = await SendCommandAsync(command, "*[e",5000);//"*[e1$"
                 if (ok)
                 {
                     if (!CheckReturnMsg(command, resp)) return false;//*[eH$*RLH$；*[e2$ *RL2$；H为当前物镜孔位，1-6，转换器运动完成
@@ -881,7 +869,7 @@ namespace Motic
             {
                 string command = $"*Key2$";
 
-                var (ok, resp) = await SendCommandAsync(command, "*[e");
+                var (ok, resp) = await SendCommandAsync(command, "*[e",5000);
                 if (ok)
                 {
                     if (!CheckReturnMsg(command, resp)) return false;
@@ -919,7 +907,7 @@ namespace Motic
 
                 pos = uint.Parse(match.Groups[1].Value);
 
-                Console.WriteLine("[XXX] GetObjectivePosition Success!");
+                //Console.WriteLine("[XXX] GetObjectivePosition Success!");
                 return true;
             }
             catch (Exception e)
@@ -960,7 +948,7 @@ namespace Motic
 
                 pos = uint.Parse(match.Groups[1].Value);
 
-                Console.WriteLine("[XXX] GetFilterWheelPosition Success!");
+                //Console.WriteLine("[XXX] GetFilterWheelPosition Success!");
                 return true;
             }
             catch (Exception e)
@@ -976,7 +964,7 @@ namespace Motic
             {
                 string command = $"*Key3$";
 
-                var (ok, resp) = await SendCommandAsync(command, "*[rC");
+                var (ok, resp) = await SendCommandAsync(command, "*[rC", 5000);
                 if (ok)
                 {
                     if (!CheckReturnMsg(command, resp)) return (false, 0);
@@ -1004,7 +992,7 @@ namespace Motic
             {
                 string command = $"*Key4$";
 
-                var (ok, resp) = await SendCommandAsync(command, "*[rC");
+                var (ok, resp) = await SendCommandAsync(command, "*[rC", 5000);
                 if (ok)
                 {
                     if (!CheckReturnMsg(command, resp)) return (false, 0);// * [rC2$，即说明当前滤色块转盘位于 2 号孔
@@ -1102,7 +1090,9 @@ namespace Motic
                         }
                     }
 
-                    if (!frame.Contains("*^") && !frame.Contains("*|"))
+                    if (!frame.Contains("*^") && !frame.Contains("*|") &&////获取状态，获取坐标
+                        !frame.Contains("*-F") && !frame.Contains("*RL") && !frame.Contains("*[rC")&&!frame.Contains("Rnb"))//获取观察模式、物镜位置、滤色块位置
+
                         Console.WriteLine("普通：" + frame);
 
                     continue;
@@ -1127,7 +1117,7 @@ namespace Motic
             }
         }
 
-        private bool IsExpectedResponse(string response, string? expectedResponse)
+        private static bool IsExpectedResponse(string response, string? expectedResponse)
         {
             // 如果没有设置期望值，则接受任何响应
             if (expectedResponse == null)
@@ -1154,7 +1144,7 @@ namespace Motic
 
             try
             {
-                if (!command.Contains("*^") && !command.Contains("*|"))
+                if (!command.Contains("*^") && !command.Contains("*|") && !command.Contains("*-F") && !command.Contains("*RL") && !command.Contains("*[rC"))
                     Console.WriteLine($"[SEND] {command} 【期望: {expectedResponse ?? "任意响应"}】");
 
                 _serialPort.Write(command);
@@ -1164,7 +1154,7 @@ namespace Motic
                 {
                     var result = pendingCmd.Tcs.Task.Result;
 
-                    if (!result.Contains("*^") && !result.Contains("*|"))
+                    if (!result.Contains("*^") && !result.Contains("*|") && !result.Contains("*-F") && !result.Contains("*RL") && !result.Contains("*[rC"))
                         Console.WriteLine($"[SUCCESS] 收到期望响应: {result}");
 
                     return (true, result);
@@ -1205,7 +1195,7 @@ namespace Motic
 
             try
             {
-                if (!command.Contains("*^") && !command.Contains("*|"))
+                if (!command.Contains("*^") && !command.Contains("*|") && !command.Contains("*-F") && !command.Contains("*RL") && !command.Contains("*[rC"))
                     Console.WriteLine($"[SEND] {command} (期望: {expectedResponse ?? "任意响应"})");
 
                 _serialPort.Write(command);
@@ -1214,7 +1204,7 @@ namespace Motic
                 {
                     response = pendingCmd.LastResponse ?? string.Empty;
 
-                    if (!response.Contains("*^") && !response.Contains("*|"))
+                    if (!response.Contains("*^") && !response.Contains("*|") && !response.Contains("*-F") && !response.Contains("*RL") && !response.Contains("*[rC"))
                         Console.WriteLine($"[SUCCESS] 收到期望响应: {response}");
                     return true;
                 }
@@ -1247,7 +1237,7 @@ namespace Motic
 
             if (response.Contains('$'))
             {
-                if (!response.Contains("*^") && !response.Contains("*|"))
+                if (!response.Contains("*^") && !response.Contains("*|") && !response.Contains("*-F") && !response.Contains("*RL") && !response.Contains("*[rC"))
                     Console.WriteLine($"[OK] 命令 {command} 校验通过，返回: {response}");
                 return true;
             }

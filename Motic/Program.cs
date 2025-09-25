@@ -58,15 +58,17 @@
             {
                 Console.WriteLine("连接OK，继续执行...");
 
-                Console.WriteLine("GetConnectState_" + pX55.GetConnectState() + "\r\n");
+                Console.WriteLine(pX55.SetDebugState(false));
 
-                Console.WriteLine(pX55.GetPosition(1, out var pos11) + $" pos:{pos11*0.625}" + "\r\n");
+                //Console.WriteLine("GetConnectState_" + pX55.GetConnectState() + "\r\n");
 
-                Console.WriteLine(await pX55.RelativeMoveAsync(1, true, 1000) + "\r\n");
+                //Console.WriteLine(pX55.GetPosition(1, out var pos11) + $" pos:{pos11*0.625}" + "\r\n");
 
-                Console.WriteLine(pX55.GetPosition(1, out pos11) + $" pos:{pos11 * 0.625}" + "\r\n");
+                //Console.WriteLine(await pX55.RelativeMoveAsync(1, true, 1000) + "\r\n");
 
-                Console.WriteLine("GetConnectState_" + pX55.GetConnectState() + "\r\n");
+                //Console.WriteLine(pX55.GetPosition(1, out pos11) + $" pos:{pos11 * 0.625}" + "\r\n");
+
+                //Console.WriteLine("GetConnectState_" + pX55.GetConnectState() + "\r\n");
 
                 //Console.WriteLine("GetConnectState_" + pX55.GetConnectState());
 

@@ -7,7 +7,7 @@
     xmlns:local="clr-namespace:MoticWpf"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     d:DataContext="{d:DesignInstance local:MoticMotorViewModel}"
-    d:DesignHeight="1000"
+    d:DesignHeight="680"
     d:DesignWidth="800"
     mc:Ignorable="d">
     <StackPanel>
@@ -221,6 +221,101 @@
             </GroupBox>
         </UniformGrid>
 
+        <UniformGrid Columns="3" IsEnabled="{Binding IsConnect}">
+
+            <GroupBox
+                Width="200"
+                Margin="10"
+                Header="观察模式"
+                Style="{DynamicResource GroupBoxTab}">
+                <DockPanel HorizontalAlignment="Center">
+                    <liftui:NumericUpDown
+                        Width="80"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Maximum="3"
+                        Minimum="1"
+                        ValueFormat="N0"
+                        Value="{Binding TargetOpticalPos}" />
+                    <Button
+                        Width="80"
+                        HorizontalAlignment="Left"
+                        VerticalContentAlignment="Center"
+                        Command="{Binding SetOpticalPosCommand}"
+                        Content="移动" />
+                    <TextBlock
+                        Margin="10,0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="{Binding OpticalPos}" />
+                </DockPanel>
+            </GroupBox>
+
+            <GroupBox
+                Width="200"
+                Margin="10"
+                Header="物镜位置"
+                Style="{DynamicResource GroupBoxTab}">
+                <DockPanel HorizontalAlignment="Center">
+                    <liftui:NumericUpDown
+                        Width="80"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Maximum="6"
+                        Minimum="1"
+                        ValueFormat="N0"
+                        Value="{Binding TargetObjectivePos}" />
+                    <Button
+                        Width="80"
+                        HorizontalAlignment="Left"
+                        VerticalContentAlignment="Center"
+                        Command="{Binding SetObjectivePosCommand}"
+                        Content="移动" />
+                    <TextBlock
+                        Margin="10,0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="{Binding ObjectivePos}" />
+                </DockPanel>
+            </GroupBox>
+
+            <GroupBox
+                Width="200"
+                Margin="10"
+                Header="滤色块位置"
+                Style="{DynamicResource GroupBoxTab}">
+
+                <DockPanel HorizontalAlignment="Center">
+                    <liftui:NumericUpDown
+                        Width="80"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Maximum="8"
+                        Minimum="1"
+                        ValueFormat="N0"
+                        Value="{Binding TargetFilterWheelPos}" />
+                    <Button
+                        Width="80"
+                        HorizontalAlignment="Left"
+                        VerticalContentAlignment="Center"
+                        Command="{Binding SetFilterWheelPosCommand}"
+                        Content="移动" />
+                    <TextBlock
+                        Margin="10,0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="{Binding FilterWheelPos}" />
+                </DockPanel>
+
+            </GroupBox>
+        </UniformGrid>
+
         <UniformGrid
             Margin="5"
             Columns="5"
@@ -283,267 +378,243 @@
                 Content="Z轴扫描测试" />
         </UniformGrid>
 
-        <DockPanel IsEnabled="{Binding IsConnect}" LastChildFill="True">
-
-            <StackPanel
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Orientation="Horizontal">
-                <GroupBox
-                    Width="80"
-                    Header="XSPEED"
-                    Style="{DynamicResource GroupBoxTab}">
-                    <liftui:NumericUpDown
-                        Increment="100"
-                        Maximum="2000"
-                        Minimum="1"
-                        Value="{Binding XSpeed}" />
-                </GroupBox>
-
-                <GroupBox
-                    Width="80"
-                    Header="YSPEED"
-                    Style="{DynamicResource GroupBoxTab}">
-                    <liftui:NumericUpDown
-                        Increment="100"
-                        Maximum="2000"
-                        Minimum="1"
-                        Value="{Binding YSpeed}" />
-                </GroupBox>
-
-                <GroupBox
-                    Width="80"
-                    Header="ZSPEED"
-                    Style="{DynamicResource GroupBoxTab}">
-                    <liftui:NumericUpDown
-                        Increment="100"
-                        Maximum="8000"
-                        Minimum="1"
-                        Value="{Binding ZSpeed}" />
-                </GroupBox>
-            </StackPanel>
-
-        </DockPanel>
-
-        <UniformGrid
-            Margin="20,10"
-            Columns="5"
-            Visibility="Collapsed">
-            <!--  光路  -->
-            <TextBlock Text="光路:" />
-            <TextBlock Text="{Binding OpticalPos}" />
-            <TextBox Text="{Binding OpticalTarget, Mode=TwoWay}" />
-            <Button Command="{Binding SetOpticalPosCommand}" Content="设置光路" />
-            <TextBlock Text="{Binding OpticalSetSuccess}" />
-
-            <!--  物镜  -->
-            <TextBlock Text="物镜:" />
-            <TextBlock Text="{Binding ObjectivePos}" />
-            <TextBox Text="{Binding ObjectiveTarget, Mode=TwoWay}" />
-            <Button Command="{Binding SetObjectivePosCommand}" Content="设置物镜" />
-            <TextBlock Text="{Binding ObjectiveSetSuccess}" />
-
-            <!--  滤光片  -->
-            <TextBlock Text="滤光片:" />
-            <TextBlock Text="{Binding FilterWheelPos}" />
-            <TextBox Text="{Binding FilterWheelTarget, Mode=TwoWay}" />
-            <Button Command="{Binding SetFilterWheelPosCommand}" Content="设置滤光片" />
-            <TextBlock Text="{Binding FilterWheelSetSuccess}" />
-        </UniformGrid>
-
-        <DockPanel
-            Margin="5,12"
-            IsHitTestVisible="False"
-            LastChildFill="True">
-            <Grid DockPanel.Dock="Top">
+        <UniformGrid Columns="2">
+            <DockPanel IsEnabled="{Binding IsConnect}" LastChildFill="True">
                 <StackPanel
-                    Margin="0,0,0,0"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Orientation="Horizontal">
+                    <GroupBox
+                        Width="80"
+                        Header="XSPEED"
+                        Style="{DynamicResource GroupBoxTab}">
+                        <liftui:NumericUpDown
+                            Increment="100"
+                            Maximum="2000"
+                            Minimum="1"
+                            Value="{Binding XSpeed}" />
+                    </GroupBox>
 
-                    <ToggleButton
-                        liftui:StatusSwitchElement.HideUncheckedElement="False"
-                        Focusable="False"
-                        IsChecked="{Binding XTaskRunning}"
-                        Style="{DynamicResource ToggleButtonCustom}">
-                        <liftui:StatusSwitchElement.CheckedElement>
+                    <GroupBox
+                        Width="80"
+                        Header="YSPEED"
+                        Style="{DynamicResource GroupBoxTab}">
+                        <liftui:NumericUpDown
+                            Increment="100"
+                            Maximum="2000"
+                            Minimum="1"
+                            Value="{Binding YSpeed}" />
+                    </GroupBox>
+
+                    <GroupBox
+                        Width="80"
+                        Header="ZSPEED"
+                        Style="{DynamicResource GroupBoxTab}">
+                        <liftui:NumericUpDown
+                            Increment="100"
+                            Maximum="8000"
+                            Minimum="1"
+                            Value="{Binding ZSpeed}" />
+                    </GroupBox>
+                </StackPanel>
+            </DockPanel>
+            <DockPanel
+                Margin="5,12"
+                IsHitTestVisible="False"
+                LastChildFill="True">
+                <Grid DockPanel.Dock="Top">
+                    <StackPanel
+                        Margin="0,0,0,0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal">
+
+                        <ToggleButton
+                            liftui:StatusSwitchElement.HideUncheckedElement="False"
+                            Focusable="False"
+                            IsChecked="{Binding XTaskRunning}"
+                            Style="{DynamicResource ToggleButtonCustom}">
+                            <liftui:StatusSwitchElement.CheckedElement>
+                                <Border
+                                    Background="{DynamicResource PrimaryBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="5">
+                                    <Label
+                                        Background="Transparent"
+                                        Content="X轴任务忙"
+                                        Foreground="White" />
+                                </Border>
+                            </liftui:StatusSwitchElement.CheckedElement>
                             <Border
-                                Background="{DynamicResource PrimaryBrush}"
+                                Background="{DynamicResource RegionBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="5">
                                 <Label
                                     Background="Transparent"
                                     Content="X轴任务忙"
-                                    Foreground="White" />
+                                    Foreground="{DynamicResource PrimaryTextBrush}" />
                             </Border>
-                        </liftui:StatusSwitchElement.CheckedElement>
-                        <Border
-                            Background="{DynamicResource RegionBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="5">
-                            <Label
-                                Background="Transparent"
-                                Content="X轴任务忙"
-                                Foreground="{DynamicResource PrimaryTextBrush}" />
-                        </Border>
-                    </ToggleButton>
+                        </ToggleButton>
 
-                    <ToggleButton
-                        Width="Auto"
-                        liftui:StatusSwitchElement.HideUncheckedElement="False"
-                        Focusable="False"
-                        IsChecked="{Binding YTaskRunning}"
-                        Style="{DynamicResource ToggleButtonCustom}">
-                        <liftui:StatusSwitchElement.CheckedElement>
+                        <ToggleButton
+                            Width="Auto"
+                            liftui:StatusSwitchElement.HideUncheckedElement="False"
+                            Focusable="False"
+                            IsChecked="{Binding YTaskRunning}"
+                            Style="{DynamicResource ToggleButtonCustom}">
+                            <liftui:StatusSwitchElement.CheckedElement>
+                                <Border
+                                    Background="{DynamicResource PrimaryBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="5">
+                                    <Label
+                                        Background="Transparent"
+                                        Content="Y轴任务忙"
+                                        Foreground="White" />
+                                </Border>
+                            </liftui:StatusSwitchElement.CheckedElement>
                             <Border
-                                Background="{DynamicResource PrimaryBrush}"
+                                Background="{DynamicResource RegionBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="5">
                                 <Label
                                     Background="Transparent"
                                     Content="Y轴任务忙"
-                                    Foreground="White" />
+                                    Foreground="{DynamicResource PrimaryTextBrush}" />
                             </Border>
-                        </liftui:StatusSwitchElement.CheckedElement>
-                        <Border
-                            Background="{DynamicResource RegionBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="5">
-                            <Label
-                                Background="Transparent"
-                                Content="Y轴任务忙"
-                                Foreground="{DynamicResource PrimaryTextBrush}" />
-                        </Border>
-                    </ToggleButton>
+                        </ToggleButton>
 
-                    <ToggleButton
-                        Width="Auto"
-                        liftui:StatusSwitchElement.HideUncheckedElement="False"
-                        Focusable="False"
-                        IsChecked="{Binding ZTaskRunning}"
-                        Style="{DynamicResource ToggleButtonCustom}">
-                        <liftui:StatusSwitchElement.CheckedElement>
+                        <ToggleButton
+                            Width="Auto"
+                            liftui:StatusSwitchElement.HideUncheckedElement="False"
+                            Focusable="False"
+                            IsChecked="{Binding ZTaskRunning}"
+                            Style="{DynamicResource ToggleButtonCustom}">
+                            <liftui:StatusSwitchElement.CheckedElement>
+                                <Border
+                                    Background="{DynamicResource PrimaryBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="5">
+                                    <Label
+                                        Background="Transparent"
+                                        Content="Z轴任务忙"
+                                        Foreground="White" />
+                                </Border>
+                            </liftui:StatusSwitchElement.CheckedElement>
                             <Border
-                                Background="{DynamicResource PrimaryBrush}"
+                                Background="{DynamicResource RegionBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="5">
                                 <Label
                                     Background="Transparent"
                                     Content="Z轴任务忙"
-                                    Foreground="White" />
+                                    Foreground="{DynamicResource PrimaryTextBrush}" />
                             </Border>
-                        </liftui:StatusSwitchElement.CheckedElement>
-                        <Border
-                            Background="{DynamicResource RegionBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="5">
-                            <Label
-                                Background="Transparent"
-                                Content="Z轴任务忙"
-                                Foreground="{DynamicResource PrimaryTextBrush}" />
-                        </Border>
-                    </ToggleButton>
+                        </ToggleButton>
 
-                    <ToggleButton
-                        Width="Auto"
-                        liftui:StatusSwitchElement.HideUncheckedElement="False"
-                        Focusable="False"
-                        IsChecked="{Binding XLimit}"
-                        Style="{DynamicResource ToggleButtonCustom}">
-                        <liftui:StatusSwitchElement.CheckedElement>
+                        <ToggleButton
+                            Width="Auto"
+                            liftui:StatusSwitchElement.HideUncheckedElement="False"
+                            Focusable="False"
+                            IsChecked="{Binding XLimit}"
+                            Style="{DynamicResource ToggleButtonCustom}"
+                            Visibility="Collapsed">
+                            <liftui:StatusSwitchElement.CheckedElement>
+                                <Border
+                                    Background="{DynamicResource PrimaryBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="5">
+                                    <Label
+                                        Background="Transparent"
+                                        Content="X轴限位告警"
+                                        Foreground="White" />
+                                </Border>
+                            </liftui:StatusSwitchElement.CheckedElement>
                             <Border
-                                Background="{DynamicResource PrimaryBrush}"
+                                Background="{DynamicResource RegionBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="5">
                                 <Label
                                     Background="Transparent"
                                     Content="X轴限位告警"
-                                    Foreground="White" />
+                                    Foreground="{DynamicResource PrimaryTextBrush}" />
                             </Border>
-                        </liftui:StatusSwitchElement.CheckedElement>
-                        <Border
-                            Background="{DynamicResource RegionBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="5">
-                            <Label
-                                Background="Transparent"
-                                Content="X轴限位告警"
-                                Foreground="{DynamicResource PrimaryTextBrush}" />
-                        </Border>
-                    </ToggleButton>
+                        </ToggleButton>
 
-                    <ToggleButton
-                        Width="Auto"
-                        liftui:StatusSwitchElement.HideUncheckedElement="False"
-                        Focusable="False"
-                        IsChecked="{Binding YLimit}"
-                        Style="{DynamicResource ToggleButtonCustom}">
-                        <liftui:StatusSwitchElement.CheckedElement>
+                        <ToggleButton
+                            Width="Auto"
+                            liftui:StatusSwitchElement.HideUncheckedElement="False"
+                            Focusable="False"
+                            IsChecked="{Binding YLimit}"
+                            Style="{DynamicResource ToggleButtonCustom}"
+                            Visibility="Collapsed">
+                            <liftui:StatusSwitchElement.CheckedElement>
+                                <Border
+                                    Background="{DynamicResource PrimaryBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="5">
+                                    <Label
+                                        Background="Transparent"
+                                        Content="Y轴限位告警"
+                                        Foreground="White" />
+                                </Border>
+                            </liftui:StatusSwitchElement.CheckedElement>
                             <Border
-                                Background="{DynamicResource PrimaryBrush}"
+                                Background="{DynamicResource RegionBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="5">
                                 <Label
                                     Background="Transparent"
                                     Content="Y轴限位告警"
-                                    Foreground="White" />
+                                    Foreground="{DynamicResource PrimaryTextBrush}" />
                             </Border>
-                        </liftui:StatusSwitchElement.CheckedElement>
-                        <Border
-                            Background="{DynamicResource RegionBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="5">
-                            <Label
-                                Background="Transparent"
-                                Content="Y轴限位告警"
-                                Foreground="{DynamicResource PrimaryTextBrush}" />
-                        </Border>
-                    </ToggleButton>
+                        </ToggleButton>
 
-                    <ToggleButton
-                        Width="Auto"
-                        liftui:StatusSwitchElement.HideUncheckedElement="False"
-                        Focusable="False"
-                        IsChecked="{Binding ZLimit}"
-                        Style="{DynamicResource ToggleButtonCustom}">
-                        <liftui:StatusSwitchElement.CheckedElement>
+                        <ToggleButton
+                            Width="Auto"
+                            liftui:StatusSwitchElement.HideUncheckedElement="False"
+                            Focusable="False"
+                            IsChecked="{Binding ZLimit}"
+                            Style="{DynamicResource ToggleButtonCustom}"
+                            Visibility="Collapsed">
+                            <liftui:StatusSwitchElement.CheckedElement>
+                                <Border
+                                    Background="{DynamicResource PrimaryBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="5">
+                                    <Label
+                                        Background="Transparent"
+                                        Content="Z轴限位告警"
+                                        Foreground="White" />
+                                </Border>
+                            </liftui:StatusSwitchElement.CheckedElement>
                             <Border
-                                Background="{DynamicResource PrimaryBrush}"
+                                Background="{DynamicResource RegionBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="5">
                                 <Label
                                     Background="Transparent"
                                     Content="Z轴限位告警"
-                                    Foreground="White" />
+                                    Foreground="{DynamicResource PrimaryTextBrush}" />
                             </Border>
-                        </liftui:StatusSwitchElement.CheckedElement>
-                        <Border
-                            Background="{DynamicResource RegionBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="5">
-                            <Label
-                                Background="Transparent"
-                                Content="Z轴限位告警"
-                                Foreground="{DynamicResource PrimaryTextBrush}" />
-                        </Border>
-                    </ToggleButton>
+                        </ToggleButton>
 
-                </StackPanel>
-            </Grid>
-        </DockPanel>
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+        </UniformGrid>
 
         <UniformGrid
             Margin="10,5"
