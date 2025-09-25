@@ -7,7 +7,7 @@
     xmlns:local="clr-namespace:MoticWpf"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     Width="800"
-    Height="665"
+    Height="660"
     ResizeMode="CanMinimize"
     mc:Ignorable="d">
 

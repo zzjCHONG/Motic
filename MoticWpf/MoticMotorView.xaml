@@ -70,7 +70,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Minimum="-50000"
-                                ValueFormat="N1"
+                                ValueFormat="N0"
                                 Value="{Binding TargetX}" />
                         </GroupBox>
                         <GroupBox
@@ -83,7 +83,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Minimum="-50000"
-                                ValueFormat="N1"
+                                ValueFormat="N0"
                                 Value="{Binding TargetY}" />
                         </GroupBox>
                         <GroupBox
@@ -96,9 +96,8 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="14"
-                                Maximum="1000"
                                 Minimum="-1000"
-                                ValueFormat="N1"
+                                ValueFormat="N0"
                                 Value="{Binding TargetZ}" />
                         </GroupBox>
                     </StackPanel>
@@ -136,7 +135,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="14"
-                                ValueFormat="N1"
+                                ValueFormat="N0"
                                 Value="{Binding XStep}" />
                             <Button
                                 x:Name="SetRelativePositionX"
@@ -144,14 +143,14 @@
                                 HorizontalAlignment="Left"
                                 VerticalContentAlignment="Center"
                                 Command="{Binding SetXInverseRelativePositionCommand}"
-                                Content="←" />
+                                Content="→（-）" />
                             <Button
                                 x:Name="SetRelativePositionInverseX"
                                 Width="80"
                                 HorizontalAlignment="Left"
                                 VerticalContentAlignment="Center"
                                 Command="{Binding SetXRelativePositionCommand}"
-                                Content="→" />
+                                Content="←（+）" />
                         </DockPanel>
                     </GroupBox>
 
@@ -167,7 +166,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="14"
-                                ValueFormat="N1"
+                                ValueFormat="N0"
                                 Value="{Binding YStep}" />
                             <Button
                                 x:Name="SetRelativePositionY"
@@ -175,14 +174,14 @@
                                 HorizontalAlignment="Left"
                                 VerticalContentAlignment="Center"
                                 Command="{Binding SetYInverseRelativePositionCommand}"
-                                Content="↑" />
+                                Content="↓（-）" />
                             <Button
                                 x:Name="SetRelativePositionInverseY"
                                 Width="80"
                                 HorizontalAlignment="Left"
                                 VerticalContentAlignment="Center"
                                 Command="{Binding SetYRelativePositionCommand}"
-                                Content="↓" />
+                                Content="↑（+）" />
                         </DockPanel>
                     </GroupBox>
 
@@ -199,7 +198,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="14"
-                                ValueFormat="N1"
+                                ValueFormat="N0"
                                 Value="{Binding ZStep}" />
                             <Button
                                 x:Name="SetRelativePositionZ"
@@ -207,14 +206,14 @@
                                 HorizontalAlignment="Left"
                                 VerticalContentAlignment="Center"
                                 Command="{Binding SetZInverseRelativePositionCommand}"
-                                Content="⊙" />
+                                Content="⊙（-）" />
                             <Button
                                 x:Name="SetRelativePositionInverseZ"
                                 Width="80"
                                 HorizontalAlignment="Left"
                                 VerticalContentAlignment="Center"
                                 Command="{Binding SetZRelativePositionCommand}"
-                                Content="○" />
+                                Content="○（+）" />
                         </DockPanel>
                     </GroupBox>
 
@@ -235,28 +234,30 @@
                 Width="130"
                 Margin="5"
                 Command="{Binding XHomeCommand}"
-                Content="X-回原点" />
+                Content="{Binding XHomeContent}" />
             <Button
                 Width="130"
                 Margin="5"
                 Command="{Binding YHomeCommand}"
-                Content="Y-回原点" />
+                Content="{Binding YHomeContent}" />
             <Button
                 Width="130"
                 Margin="5"
                 Command="{Binding ZHomeCommand}"
-                Content="Z-回原点"
+                Content="{Binding ZHomeContent}"
                 IsEnabled="{Binding IsZAxisEnable}" />
             <Button
                 Width="130"
                 Margin="5"
                 Command="{Binding OriginPosHomeCommand}"
-                Content="回到物理原点" />
+                Content="回到物理原点"
+                Visibility="Collapsed" />
             <Button
                 Width="130"
                 Margin="5"
                 Command="{Binding ResetCommand}"
-                Content="复位变量" />
+                Content="复位变量"
+                Visibility="Collapsed" />
             <Button
                 Width="130"
                 Margin="5"
@@ -292,29 +293,67 @@
                     Width="80"
                     Header="XSPEED"
                     Style="{DynamicResource GroupBoxTab}">
-                    <TextBox Text="{Binding XSpeed}" />
+                    <liftui:NumericUpDown
+                        Increment="100"
+                        Maximum="2000"
+                        Minimum="1"
+                        Value="{Binding XSpeed}" />
                 </GroupBox>
 
                 <GroupBox
                     Width="80"
                     Header="YSPEED"
                     Style="{DynamicResource GroupBoxTab}">
-                    <TextBox Text="{Binding YSpeed}" />
+                    <liftui:NumericUpDown
+                        Increment="100"
+                        Maximum="2000"
+                        Minimum="1"
+                        Value="{Binding YSpeed}" />
                 </GroupBox>
 
                 <GroupBox
                     Width="80"
                     Header="ZSPEED"
                     Style="{DynamicResource GroupBoxTab}">
-                    <TextBox Text="{Binding ZSpeed}" />
+                    <liftui:NumericUpDown
+                        Increment="100"
+                        Maximum="8000"
+                        Minimum="1"
+                        Value="{Binding ZSpeed}" />
                 </GroupBox>
             </StackPanel>
 
         </DockPanel>
 
+        <UniformGrid
+            Margin="20,10"
+            Columns="5"
+            Visibility="Collapsed">
+            <!--  光路  -->
+            <TextBlock Text="光路:" />
+            <TextBlock Text="{Binding OpticalPos}" />
+            <TextBox Text="{Binding OpticalTarget, Mode=TwoWay}" />
+            <Button Command="{Binding SetOpticalPosCommand}" Content="设置光路" />
+            <TextBlock Text="{Binding OpticalSetSuccess}" />
+
+            <!--  物镜  -->
+            <TextBlock Text="物镜:" />
+            <TextBlock Text="{Binding ObjectivePos}" />
+            <TextBox Text="{Binding ObjectiveTarget, Mode=TwoWay}" />
+            <Button Command="{Binding SetObjectivePosCommand}" Content="设置物镜" />
+            <TextBlock Text="{Binding ObjectiveSetSuccess}" />
+
+            <!--  滤光片  -->
+            <TextBlock Text="滤光片:" />
+            <TextBlock Text="{Binding FilterWheelPos}" />
+            <TextBox Text="{Binding FilterWheelTarget, Mode=TwoWay}" />
+            <Button Command="{Binding SetFilterWheelPosCommand}" Content="设置滤光片" />
+            <TextBlock Text="{Binding FilterWheelSetSuccess}" />
+        </UniformGrid>
+
         <DockPanel
             Margin="5,12"
-            IsHitTestVisible="True"
+            IsHitTestVisible="False"
             LastChildFill="True">
             <Grid DockPanel.Dock="Top">
                 <StackPanel

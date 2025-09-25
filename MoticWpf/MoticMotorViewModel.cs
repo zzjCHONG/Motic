@@ -190,6 +190,10 @@ namespace MoticWpf
             XSpeed = _motor!.XSpeed;
             YSpeed = _motor.YSpeed;
             ZSpeed = _motor!.ZSpeed;
+
+            XSpeed = 1000;
+            YSpeed = 1000;
+            ZSpeed = 4000;
         }
 
         [ObservableProperty]
@@ -219,17 +223,19 @@ namespace MoticWpf
         {
             Task.Run(() =>
             {
-                //X = _motor!.X;
-                //Y = _motor!.Y;
-                //Z = _motor!.Z;
+                XTaskRunning = _motor!.XTaskRunning;
+                YTaskRunning = _motor.YTaskRunning;
+                ZTaskRunning = _motor.ZTaskRunning;
+
+                X = _motor!.X;
+                Y = _motor!.Y;
+                Z = _motor!.Z;
 
                 //XLimit = _motor!.XLimit;
                 //YLimit = _motor!.YLimit;
                 //ZLimit = _motor!.ZLimit;
 
-                //XTaskRunning = _motor!.XTaskRunning;
-                //YTaskRunning = _motor.YTaskRunning;
-                //ZTaskRunning = _motor.ZTaskRunning;
+
             });
         }
 
@@ -247,9 +253,13 @@ namespace MoticWpf
             //var pos = new Dictionary<uint, double>() { { 1, TargetX }, { 2, TargetY }, { 3, TargetZ } };
             //var res = await _motor!.MulAxisAbsoluteMoveAsync(pos);
             //if (!res) Console.WriteLine("绝对移动错误！");
-           await _motor!.SetXPositionAsync(TargetX);
-            await _motor!.SetYPositionAsync(TargetY);
-            await _motor!.SetZPositionAsync(TargetZ);
+
+            var moveX = _motor!.SetXPositionAsync(TargetX);
+            var moveY = _motor!.SetYPositionAsync(TargetY);
+            var moveZ = _motor!.SetZPositionAsync(TargetZ);
+
+            await Task.WhenAll(moveX, moveY, moveZ);
+
         }
 
         [RelayCommand]
@@ -299,24 +309,51 @@ namespace MoticWpf
         [RelayCommand]
         async Task XHome()
         {
+            XHomeContent = "X-回原点中..";
+            _timerPos.Stop();
+
             if (!await _motor!.XResetPositionAsync())
                 Console.WriteLine("X轴回原点错误！");
+
+            _timerPos.Start();
+            XHomeContent = "X-回原点";
         }
 
         [RelayCommand]
         async Task YHome()
         {
+            YHomeContent = "Y-回原点中..";
+            _timerPos.Stop();
+
             if (!await _motor!.YResetPositionAsync())
                 Console.WriteLine("Y轴回原点错误！");
+
+            _timerPos.Start();
+            YHomeContent = "Y-回原点";
         }
 
         [RelayCommand]
         async Task ZHome()
         {
+            ZHomeContent = "Z-回原点中..";
+            _timerPos.Stop();
+
             if (IsZAxisEnable)
                 if (!await _motor!.ZResetPositionAsync())
                     Console.WriteLine("Z轴回原点错误！");
+
+            _timerPos.Start();
+            ZHomeContent = "Z-回原点";
         }
+
+        [ObservableProperty]
+        string _xHomeContent = "X-回原点";
+
+        [ObservableProperty]
+        string _yHomeContent = "Y-回原点";
+
+        [ObservableProperty]
+        string _zHomeContent = "Z-回原点";
 
         [RelayCommand]
         void SetOriginPos()
@@ -586,4 +623,5 @@ namespace MoticWpf
             return points;
         }
     }
+
 }

@@ -203,8 +203,43 @@ namespace Motic
     /// </summary>
     public partial class PX55
     {
-        public double UnitXY { get; set; } = 0.625;
-        public double UnitZ { get; set; } = 0.01;
+        private readonly int UnitZSpeedMM = 1250;
+        private readonly int UnitXYSpeedMM = 100;
+        public double UnitXYUM { get; set; } = 0.625;
+        public double UnitZUM { get; set; } = 0.01;
+        public int XspeedMM { get; set; }
+        public int YspeedMM { get; set; }   
+        public int ZspeedMM { get; set; }
+
+        /// <summary>
+        /// 122100
+        /// </summary>
+        public double XUpperLimit { get; set; } = 120000;
+
+        /// <summary>
+        /// 82537
+        /// </summary>
+        public double YUpperLimit { get; set; } = 82000;
+
+        /// <summary>
+        /// 16556.59
+        /// </summary>
+        public double ZUpperLimit { get; set; } = 16000;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public double XLowerLimit { get; set; } = -190;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public double YLowerLimit { get; set; } = -190;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public double ZLowerLimit { get; set; } = -80;
 
         //note：运动完成：当调用相对运动、停止运动、复位命令时，会触发该状态，当触发限位或运动到位后，都会触发该状态。无法以此作为到位判断。
         //到位判断使用查询坐标状态命令
@@ -291,19 +326,49 @@ namespace Motic
         {
             try
             {
+                if (!GetPosition(axis, out var currentPos)) return false;
+
                 if (!Enum.IsDefined(typeof(Axis), axis)) return false;
                 string command = $"*DP{(Axis)axis}{pos:X8}$";//*DPY000F07CD$
 
                 if (!SendCommand(command, out var resp, $"*^{(Axis)axis}{pos:X8}")) return false;
 
-                Console.WriteLine("[XXX] SetPosition Success");
+                Console.WriteLine("[XXX] SetPosition Success "+ resp);
+
+                var posUnitTran = (Axis)axis == Axis.Z ? UnitZUM : UnitXYUM;
+                var actualTargetPos = currentPos * posUnitTran;
+                var actualPos = pos * posUnitTran;
+                var abs = actualTargetPos - actualPos;
+                switch ((Axis)axis)
+                {
+                    case Axis.X:
+                        Console.WriteLine($"#{XLowerLimit},{XUpperLimit}");
+                        XUpperLimit += abs;
+                        XLowerLimit += abs;
+                        Console.WriteLine($"##{XLowerLimit},{XUpperLimit}");
+                        break;
+                    case Axis.Y:
+                        Console.WriteLine($"#{YLowerLimit},{YUpperLimit}");
+                        YUpperLimit += abs;
+                        YLowerLimit += abs;
+                        Console.WriteLine($"##{YLowerLimit},{YUpperLimit}");
+                        break;
+                    case Axis.Z:
+                        Console.WriteLine($"#{ZLowerLimit},{ZUpperLimit}");
+                        ZUpperLimit += abs;
+                        ZLowerLimit += abs;
+                        Console.WriteLine($"##{ZLowerLimit},{ZUpperLimit}");
+                        break;
+                    default:
+                        return false;
+                }
+
                 return true;
             }
             catch (Exception e)
             {
                 Console.WriteLine("[XXX] SetPosition Failed:" + e.Message);
                 return false;
-
             }
         }
 
@@ -334,14 +399,14 @@ namespace Motic
         /// Z轴的加速步进脉冲速度计算：Value * 10000 （PPS/SEC）
         /// </summary>
         /// <param name="axis"></param>
-        /// <param name="accSpeed"></param>
+        /// <param name="decSpeed"></param>
         /// <returns></returns>
-        public bool SetDecSpeed(uint axis, int accSpeed)
+        public bool SetDecSpeed(uint axis, int decSpeed)
         {
             if (!Enum.IsDefined(typeof(Axis), axis)) return false;
-            if (accSpeed > 8000 || accSpeed < 0) return false;
+            if (decSpeed > 8000 || decSpeed < 0) return false;
 
-            string command = $"*DC{(Axis)axis}{accSpeed:X4}$";//*DCZ07D0$
+            string command = $"*DC{(Axis)axis}{decSpeed:X4}$";//*DCZ07D0$
             _serialPort!.Write(command);//该设置无返回值
 
             return true;
@@ -354,17 +419,32 @@ namespace Motic
         /// 速度无负值
         /// </summary>
         /// <param name="axis"></param>
-        /// <param name="accSpeed"></param>
+        /// <param name="speed"></param>
         /// <returns></returns>
-        public bool SetSpeed(uint axis, int accSpeed)
+        public bool SetSpeed(uint axis, int speed)
         {
             if (!Enum.IsDefined(typeof(Axis), axis)) return false;
 
             var max = axis == (uint)Axis.Z ? 8000 : 2000;
-            if (accSpeed > max || accSpeed < 0) return false;
+            if (speed > max || speed < 0) return false;
 
-            string command = $"*SP{(Axis)axis}{accSpeed:X4}$";//*SPZ03E8$
+            string command = $"*SP{(Axis)axis}{speed:X4}$";//*SPZ03E8$
             _serialPort!.Write(command);//该设置无返回值
+
+            switch ((Axis)axis)
+            {
+                case Axis.X:
+                    XspeedMM = speed;
+                    break;
+                case Axis.Y:
+                    YspeedMM = speed;
+                    break;
+                case Axis.Z:
+                    ZspeedMM = speed;
+                    break;
+                default:
+                    return false;
+            }
 
             return true;
         }
@@ -396,17 +476,18 @@ namespace Motic
             string hexPos = resp.Substring(3, resp.Length - 4);
             int position = int.Parse(hexPos, System.Globalization.NumberStyles.HexNumber);
 
-            Console.WriteLine($"[XXX] Stop Success：{axisResp}-{position}");
+            Console.WriteLine($"[XXX] Stop Success：{axisResp}-{position} resp_{resp}");
 
             return true;
         }
 
         /// <summary>
         /// 相对位移
+        /// 移动暂不考虑速度变化，后期有需要可调整
         /// </summary>
         /// <param name="axis"></param>
-        /// <param name="isForward"></param>
-        /// <param name="pos"></param>
+        /// <param name="isForward">true为正向</param>
+        /// <param name="pos">非真实世界距离，与真实世界距离应乘以UnitXY/UnitZ换算</param>
         /// <returns></returns>
         public async Task<bool> RelativeMoveAsync(uint axis, bool isForward, int pos)
         {
@@ -415,17 +496,68 @@ namespace Motic
                 if (!Enum.IsDefined(typeof(Axis), axis)) return false;
                 var dir = isForward ? "+" : "-";
                 if (!isForward) pos = Math.Abs(pos);//转换为16进制前先恢复成正数
-
                 string command = $"*PR{(Axis)axis}{dir}{pos:X8}$";//*PRY+00000FA0$
 
                 if (!GetPosition(axis, out var currentPos)) return false;
-                var actualPos = currentPos + (isForward ? pos : pos * -1);
-                var actualPosUnit = actualPos * UnitXY;
-                string verifyData = $"*({(Axis)axis}{actualPos:X8}$";
 
-                //var (ok, resp) = await SendCommandAsync(command, $"*({(Axis)axis}", 10000);
-                var (ok, resp) = await SendCommandAsync(command, verifyData, 6000);//到达限位时不会返回正确数值
-                //var (ok, resp) = await SendCommandAsync(command, $"*|{(Axis)axis}0$", 10000);
+                var posUnitTran = (Axis)axis == Axis.Z ? UnitZUM : UnitXYUM;
+                var pSpeedUnitTran = (Axis)axis == Axis.Z ? UnitZSpeedMM : UnitXYSpeedMM;
+
+                var actualTargetPos = pos * posUnitTran;
+                var actualspeed = 0;
+                switch ((Axis)axis)
+                {
+                    case Axis.X:
+                        actualspeed = XspeedMM / pSpeedUnitTran;
+                        break;
+                    case Axis.Y:
+                        actualspeed = YspeedMM / pSpeedUnitTran;
+                        break;
+                    case Axis.Z:
+                        actualspeed = ZspeedMM / pSpeedUnitTran;
+                        break;
+                    default:
+                        return false;
+                }
+                var spentTime = actualTargetPos / 1000.0 / actualspeed * 1000.0;//预期时间，单位ms
+                var timeoutTime = Math.Max(spentTime * 2, 2000);//超时时间，单位ms
+
+                var actualPos = currentPos + (isForward ? pos : pos * -1);
+                string verifyData = $"*({(Axis)axis}{actualPos:X8}$";//预测目标位置
+
+                //实测，上下限会变，唯一有效的是到达限位后不返回对应数据，但仍会移动至限位
+                //var actualPosUnit = actualPos * posUnitTran;
+                //double actualLowerLimit = 0;
+                //double actualUpperLimit = 0;
+                //switch ((Axis)axis)
+                //{
+                //    case Axis.X:
+                //        actualLowerLimit = XLowerLimit;
+                //        actualUpperLimit = XUpperLimit;
+                //        break;
+                //    case Axis.Y:
+                //        actualLowerLimit = YLowerLimit;
+                //        actualUpperLimit = YUpperLimit;
+                //        break;
+                //    case Axis.Z:
+                //        actualLowerLimit = ZLowerLimit;
+                //        actualUpperLimit = ZUpperLimit;
+                //        break;
+                //    default:
+                //        return false;
+                //}
+                //if(actualPosUnit< actualLowerLimit|| actualPosUnit > actualUpperLimit)
+                //{
+                //    Console.WriteLine("超出限位");
+                //    return false;
+                //}
+
+                //校验
+                //到达限位时不会返回正确数值
+                //超时判断时间为预估时间的两倍
+                //var (ok, resp) = await SendCommandAsync(command, $"*({(Axis)axis}", 10000);//校验移动到位反馈
+                var (ok, resp) = await SendCommandAsync(command, verifyData, (int)timeoutTime);//校验移动到位反馈，具体到实际为止
+                //var (ok, resp) = await SendCommandAsync(command, $"*|{(Axis)axis}0$", 10000);//校验运动状态
 
                 if (ok)
                 {
@@ -439,8 +571,7 @@ namespace Motic
                     string hexPos = resp.Substring(3, resp.Length - 4);
                     int position = int.Parse(hexPos, System.Globalization.NumberStyles.HexNumber);
 
-                    var unitTran = (Axis)axis == Axis.Z ? UnitZ : UnitXY;
-                    Console.WriteLine($"[XXX] RelativeMoveAsync Success：{axisResp}：{position * unitTran}     {resp}");
+                    Console.WriteLine($"[XXX] RelativeMoveAsync Success：{axisResp}：{position * posUnitTran}     {resp}");
                     return true;
                 }
 
@@ -464,13 +595,14 @@ namespace Motic
         {
             if (!GetPosition(axis, out var currentPos)) return false;
 
-            var unitTran = (Axis)axis == Axis.Z ? UnitZ : UnitXY;
+            var unitTran = (Axis)axis == Axis.Z ? UnitZUM : UnitXYUM;
             var currentPosActual = currentPos * unitTran;
-            int dis = (int)(targetPos - currentPosActual);
+            var dis = targetPos - currentPosActual;
 
-            if (dis == 0) return true;//相对位移输入0无返回
+            if (Math.Abs(dis) < unitTran)
+                return true;//相对位移输入小于最小步进，无返回
 
-            if (!await RelativeMoveAsync(axis, dis > 0, (int)(dis / unitTran))) return false;
+            if (!await RelativeMoveAsync(axis, dis > 0, (int)Math.Round(dis / unitTran, MidpointRounding.AwayFromZero))) return false;
 
             return true;
         }
@@ -537,10 +669,12 @@ namespace Motic
         /// Z 轴复位到复位指令执行前的位置，Z 轴坐标零点位于行程最下端
         /// XYZ 复位不可同时进行，任何时候只能有 1 轴在执行复位动作，其他轴必须等待这个轴复位完成后才可进行复位。复位动作执行期间其他轴不可动作
         /// 复位时，只可：停止、读取位置、读取运动状态
+        /// 
+        /// 当前版本无法读取位置、读取运动状态，只可设置停止。
         /// </summary>
         /// <param name="axis"></param>
         /// <returns></returns>
-        public async Task<bool> ResetAsync(uint axis, int timeoutMs = 5000)
+        public async Task<bool> ResetAsync(uint axis, int timeoutMs = 10000)
         {
             try
             {
@@ -896,14 +1030,19 @@ namespace Motic
     public partial class PX55
     {
         private string _receiveBuffer = string.Empty;
-        private TaskCompletionSource<string>? _commandTcs;
-        private string? _lastResponse;
-        private readonly ManualResetEventSlim _waitHandle = new(false);
         private readonly object _syncRoot = new();
+        private readonly List<PendingCommand> _pendingCommands = new(); // 替换单一的 _commandTcs
 
-        public event Action<char>? ErrorOccurred;     // 错误信息
+        public event Action<char>? ErrorOccurred;
 
-        private string? _expectedResponse;
+        // 等待中的命令
+        private class PendingCommand
+        {
+            public TaskCompletionSource<string> Tcs { get; set; } = new();
+            public string? ExpectedResponse { get; set; }
+            public ManualResetEventSlim? WaitHandle { get; set; } // 用于同步版本
+            public string? LastResponse { get; set; } // 用于同步版本
+        }
 
         private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
@@ -937,16 +1076,34 @@ namespace Motic
                         ErrorOccurred?.Invoke(axis);
                     }
 
-                    // 仅当符合期望值时才触发等待结束
-                    if (IsExpectedResponse(frame))//当同时有多个命令发送，校验返回错误。估计得修改接收的框架了
+                    // 查找匹配的等待命令
+                    lock (_syncRoot)
                     {
-                        _lastResponse = frame;
-                        _commandTcs?.TrySetResult(frame);
-                        _waitHandle.Set();
+                        for (int i = _pendingCommands.Count - 1; i >= 0; i--)
+                        {
+                            var cmd = _pendingCommands[i];
+                            if (IsExpectedResponse(frame, cmd.ExpectedResponse))
+                            {
+                                // 找到匹配的命令，移除并完成
+                                _pendingCommands.RemoveAt(i);
+
+                                // 异步版本
+                                cmd.Tcs.TrySetResult(frame);
+
+                                // 同步版本
+                                if (cmd.WaitHandle != null)
+                                {
+                                    cmd.LastResponse = frame;
+                                    cmd.WaitHandle.Set();
+                                }
+
+                                break; // 只匹配第一个符合条件的
+                            }
+                        }
                     }
 
                     if (!frame.Contains("*^") && !frame.Contains("*|"))
-                        Console.WriteLine("普通："+frame);
+                        Console.WriteLine("普通：" + frame);
 
                     continue;
                 }
@@ -957,22 +1114,27 @@ namespace Motic
             }
             catch (Exception ex)
             {
-                _commandTcs?.TrySetException(ex);
+                // 通知所有等待中的命令发生异常
+                lock (_syncRoot)
+                {
+                    foreach (var cmd in _pendingCommands)
+                    {
+                        cmd.Tcs.TrySetException(ex);
+                    }
+                    _pendingCommands.Clear();
+                }
                 Console.WriteLine("SerialPort_DataReceived Failed:" + ex.Message);
             }
         }
 
-        private bool IsExpectedResponse(string response)
+        private bool IsExpectedResponse(string response, string? expectedResponse)
         {
-            lock (_syncRoot)
-            {
-                // 如果没有设置期望值，则接受任何响应
-                if (_expectedResponse == null)
-                    return true;
+            // 如果没有设置期望值，则接受任何响应
+            if (expectedResponse == null)
+                return true;
 
-                // 使用字符串匹配
-                return response.Contains(_expectedResponse, StringComparison.OrdinalIgnoreCase);
-            }
+            // 使用字符串匹配
+            return response.Contains(expectedResponse, StringComparison.OrdinalIgnoreCase);
         }
 
         public async Task<(bool, string)> SendCommandAsync(string command, string? expectedResponse = null, int timeoutMs = 3000)
@@ -980,38 +1142,46 @@ namespace Motic
             if (!_serialPort!.IsOpen)
                 throw new InvalidOperationException("串口未打开");
 
-            var tcs = new TaskCompletionSource<string>();
+            var pendingCmd = new PendingCommand
+            {
+                ExpectedResponse = expectedResponse
+            };
+
             lock (_syncRoot)
             {
-                _commandTcs = tcs;
-                _expectedResponse = expectedResponse;
+                _pendingCommands.Add(pendingCmd);
             }
 
-            _receiveBuffer = string.Empty;
-
-            if (!command.Contains("*^") && !command.Contains("*|"))
-                Console.WriteLine($"[SEND] {command} 【期望: {expectedResponse ?? "任意响应"}】");
-            _serialPort.Write(command);
-
-            var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(timeoutMs));
-            if (completedTask == tcs.Task)
+            try
             {
-                var result = tcs.Task.Result;
+                if (!command.Contains("*^") && !command.Contains("*|"))
+                    Console.WriteLine($"[SEND] {command} 【期望: {expectedResponse ?? "任意响应"}】");
 
-                if (!result.Contains("*^") && !result.Contains("*|"))
-                    Console.WriteLine($"[SUCCESS] 收到期望响应: {result}");
+                _serialPort.Write(command);
 
-                return (true, result);
+                var completedTask = await Task.WhenAny(pendingCmd.Tcs.Task, Task.Delay(timeoutMs));
+                if (completedTask == pendingCmd.Tcs.Task)
+                {
+                    var result = pendingCmd.Tcs.Task.Result;
+
+                    if (!result.Contains("*^") && !result.Contains("*|"))
+                        Console.WriteLine($"[SUCCESS] 收到期望响应: {result}");
+
+                    return (true, result);
+                }
+                else
+                {
+                    Console.WriteLine($"[TIMEOUT] {command} 超时未收到期望响应");
+                    return (false, string.Empty);
+                }
             }
-            else
+            finally
             {
-                Console.WriteLine($"[TIMEOUT] {command} 超时未收到期望响应");
+                // 清理：无论成功失败都要移除
                 lock (_syncRoot)
                 {
-                    _expectedResponse = null;
-                    _commandTcs = null;
+                    _pendingCommands.Remove(pendingCmd);
                 }
-                return (false, string.Empty);
             }
         }
 
@@ -1021,37 +1191,47 @@ namespace Motic
                 throw new InvalidOperationException("串口未打开");
 
             response = string.Empty;
+
+            var pendingCmd = new PendingCommand
+            {
+                ExpectedResponse = expectedResponse,
+                WaitHandle = new ManualResetEventSlim(false)
+            };
+
             lock (_syncRoot)
             {
-                _lastResponse = string.Empty;
-                _receiveBuffer = string.Empty;
-                _expectedResponse = expectedResponse;
-                _waitHandle.Reset();
+                _pendingCommands.Add(pendingCmd);
             }
-            if (!command.Contains("*^") && !command.Contains("*|"))
-                Console.WriteLine($"[SEND] {command} (期望: {expectedResponse ?? "任意响应"})");
-            _serialPort.Write(command);
 
-            if (_waitHandle.Wait(timeoutMs))
+            try
             {
+                if (!command.Contains("*^") && !command.Contains("*|"))
+                    Console.WriteLine($"[SEND] {command} (期望: {expectedResponse ?? "任意响应"})");
+
+                _serialPort.Write(command);
+
+                if (pendingCmd.WaitHandle.Wait(timeoutMs))
+                {
+                    response = pendingCmd.LastResponse ?? string.Empty;
+
+                    if (!response.Contains("*^") && !response.Contains("*|"))
+                        Console.WriteLine($"[SUCCESS] 收到期望响应: {response}");
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine($"[TIMEOUT] {command} 超时未收到期望响应");
+                    return false;
+                }
+            }
+            finally
+            {
+                // 清理：无论成功失败都要移除
                 lock (_syncRoot)
                 {
-                    response = _lastResponse ?? string.Empty;
-                    _expectedResponse = null;
+                    _pendingCommands.Remove(pendingCmd);
                 }
-
-                if (!response.Contains("*^") && !response.Contains("*|"))
-                    Console.WriteLine($"[SUCCESS] 收到期望响应: {response}");
-                return true;
-            }
-            else
-            {
-                Console.WriteLine($"[TIMEOUT] {command} 超时未收到期望响应");
-                lock (_syncRoot)
-                {
-                    _expectedResponse = null;
-                }
-                return false;
+                pendingCmd.WaitHandle?.Dispose();
             }
         }
 
@@ -1077,6 +1257,5 @@ namespace Motic
                 return false;
             }
         }
-
     }
 }
